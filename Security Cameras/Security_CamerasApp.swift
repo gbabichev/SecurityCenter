@@ -13,5 +13,6 @@ struct Security_CamerasApp: App {
         WindowGroup {
             ContentView()
         }
+        .windowStyle(.hiddenTitleBar)
     }
 }

@@ -19,30 +19,52 @@ struct ContentView: View {
     @AppStorage("camerasJSON") private var camerasJSON: String = "[]"
     @State private var cameras: [CameraConfig] = []
     @State private var showSettings = false
+    @State private var selectedCameraID: CameraConfig.ID?
+    @State private var availability: [CameraConfig.ID: Bool] = [:]
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if cameras.isEmpty {
-                    ContentUnavailableView(
-                        "No Cameras",
-                        systemImage: "video",
-                        description: Text("Open Settings to add your first IP camera.")
-                    )
-                } else {
-                    List(cameras) { camera in
-                        CameraRowView(camera: camera)
+        NavigationSplitView {
+            if cameras.isEmpty {
+                ContentUnavailableView(
+                    "No Cameras",
+                    systemImage: "video",
+                    description: Text("Open Settings to add your first IP camera.")
+                )
+            } else {
+                List(cameras, selection: $selectedCameraID) { camera in
+                    HStack {
+                        Text(camera.displayName)
+                        Spacer()
+                        AvailabilityIndicator(isAvailable: availability[camera.id] ?? false)
                     }
+                    .contentShape(Rectangle())
+                    .tag(camera.id)
+                    .background(
+                        AvailabilityProbe(url: camera.snapshotURL) { isAvailable in
+                            availability[camera.id] = isAvailable
+                        }
+                    )
                 }
             }
-            .navigationTitle("Security Cameras")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
-                    }
+        } detail: {
+            if let selectedCamera = selectedCamera {
+                CameraDetailView(camera: selectedCamera)
+                    .ignoresSafeArea()
+            } else {
+                ContentUnavailableView(
+                    "Select a Camera",
+                    systemImage: "video",
+                    description: Text("Choose a camera from the sidebar.")
+                )
+            }
+        }
+        .navigationTitle("Security Cameras")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showSettings = true
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
                 }
             }
         }
@@ -51,7 +73,11 @@ struct ContentView: View {
         }
         .onAppear(perform: loadCameras)
         .onChange(of: cameras, saveCameras)
-        .padding()
+    }
+
+    private var selectedCamera: CameraConfig? {
+        guard let selectedCameraID else { return nil }
+        return cameras.first { $0.id == selectedCameraID }
     }
 
     private func loadCameras() {
@@ -162,24 +188,78 @@ struct CameraSettingsView: View {
     }
 }
 
-struct CameraRowView: View {
+struct CameraDetailView: View {
     let camera: CameraConfig
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            SnapshotView(url: camera.snapshotURL)
-                .frame(width: 160, height: 90)
-                .clipped()
-                .cornerRadius(6)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(camera.displayName)
-                    .font(.headline)
+        ZStack {
+            Color.black
+                .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text(camera.displayName)
+                        .font(.title2)
+                        .foregroundStyle(.white)
+                    Spacer()
+                }
+
+                SnapshotView(url: camera.snapshotURL)
+                    .cornerRadius(8)
+
                 Text(camera.host)
+                    .foregroundStyle(.white.opacity(0.7))
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
             }
+            .padding()
+            .frame(maxWidth: 1200, maxHeight: 900)
         }
-        .padding(.vertical, 6)
+        .frame(minWidth: 900, minHeight: 600)
+    }
+}
+
+struct AvailabilityIndicator: View {
+    let isAvailable: Bool
+
+    var body: some View {
+        Image(systemName: isAvailable ? "checkmark.circle.fill" : "xmark.circle")
+            .foregroundStyle(isAvailable ? .green : .secondary)
+    }
+}
+
+struct AvailabilityProbe: View {
+    let url: URL?
+    let onStatusChange: (Bool) -> Void
+    @State private var isRunning = false
+
+    var body: some View {
+        Color.clear
+            .task {
+                guard !isRunning else { return }
+                isRunning = true
+                await poll()
+            }
+    }
+
+    private func poll() async {
+        while !Task.isCancelled {
+            let isAvailable = await checkAvailability()
+            onStatusChange(isAvailable)
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+        }
+    }
+
+    private func checkAvailability() async -> Bool {
+        guard let url else { return false }
+        do {
+            let (_, response) = try await URLSession.shared.data(from: url)
+            if let http = response as? HTTPURLResponse {
+                return (200...299).contains(http.statusCode)
+            }
+            return true
+        } catch {
+            return false
+        }
     }
 }
 
@@ -214,9 +294,9 @@ struct SnapshotView: View {
     }
 
     private func poll() async {
-        while true {
+        while !Task.isCancelled {
             await fetchSnapshot()
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
         }
     }
 
