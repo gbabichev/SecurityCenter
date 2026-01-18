@@ -202,31 +202,56 @@ struct CameraSettingsView: View {
 
 struct CameraDetailView: View {
     let camera: CameraConfig
+    @State private var snapshotStatus: SnapshotStatus = .loading
 
     var body: some View {
-        ZStack {
-            Color.black
-                .ignoresSafeArea()
+        Group {
+            if snapshotStatus == .failed {
+                ContentUnavailableView(
+                    "Check camera settings",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text("Verify username, password, host, and channel.")
+                )
+                .background(snapshotProbeView)
+            } else {
+                ZStack {
+                    Color.black
+                        .ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Text(camera.displayName)
-                        .font(.title2)
-                        .foregroundStyle(.white)
-                    Spacer()
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Text(camera.displayName)
+                                .font(.title2)
+                                .foregroundStyle(.white)
+                            Spacer()
+                        }
+
+                        SnapshotView(url: camera.snapshotURL) { status in
+                            snapshotStatus = status
+                        }
+                        .cornerRadius(8)
+
+                        Text(camera.host)
+                            .foregroundStyle(.white.opacity(0.7))
+                            .font(.subheadline)
+                    }
+                    .padding()
+                    .frame(maxWidth: 1200, maxHeight: 900)
                 }
-
-                SnapshotView(url: camera.snapshotURL)
-                    .cornerRadius(8)
-
-                Text(camera.host)
-                    .foregroundStyle(.white.opacity(0.7))
-                    .font(.subheadline)
+                .frame(minWidth: 900, minHeight: 600)
             }
-            .padding()
-            .frame(maxWidth: 1200, maxHeight: 900)
         }
-        .frame(minWidth: 900, minHeight: 600)
+        .onChange(of: camera.snapshotURL) { _ in
+            snapshotStatus = .loading
+        }
+    }
+
+    private var snapshotProbeView: some View {
+        SnapshotView(url: camera.snapshotURL) { status in
+            snapshotStatus = status
+        }
+        .frame(width: 1, height: 1)
+        .opacity(0)
     }
 }
 
@@ -280,10 +305,16 @@ struct AvailabilityProbe: View {
     }
 }
 
+enum SnapshotStatus {
+    case loading
+    case ok
+    case failed
+}
+
 struct SnapshotView: View {
     let url: URL?
     @State private var image: PlatformImage?
-    @State private var isRunning = false
+    let onStatusChange: (SnapshotStatus) -> Void
 
     var body: some View {
         ZStack {
@@ -303,9 +334,9 @@ struct SnapshotView: View {
             }
         }
         .aspectRatio(16 / 9, contentMode: .fill)
-        .task {
-            guard !isRunning else { return }
-            isRunning = true
+        .task(id: url) {
+            image = nil
+            onStatusChange(.loading)
             await poll()
         }
     }
@@ -320,15 +351,45 @@ struct SnapshotView: View {
     private func fetchSnapshot() async {
         guard let url else { return }
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let http = response as? HTTPURLResponse,
+                  (200...299).contains(http.statusCode) else {
+                await markSnapshotFailure()
+                return
+            }
+            if let contentType = http.value(forHTTPHeaderField: "Content-Type"),
+               !contentType.localizedCaseInsensitiveContains("image/"),
+               !data.isJPEG {
+                await markSnapshotFailure()
+                return
+            }
 #if os(iOS)
-            image = UIImage(data: data)
+            guard let decoded = UIImage(data: data) else {
+                await markSnapshotFailure()
+                return
+            }
 #else
-            image = NSImage(data: data)
+            guard let decoded = NSImage(data: data) else {
+                await markSnapshotFailure()
+                return
+            }
 #endif
+            await markSnapshotSuccess(decoded)
         } catch {
-            // Ignore transient errors while polling.
+            await markSnapshotFailure()
         }
+    }
+
+    @MainActor
+    private func markSnapshotFailure() {
+        image = nil
+        onStatusChange(.failed)
+    }
+
+    @MainActor
+    private func markSnapshotSuccess(_ decoded: PlatformImage) {
+        image = decoded
+        onStatusChange(.ok)
     }
 }
 
