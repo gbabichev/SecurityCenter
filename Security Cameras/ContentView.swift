@@ -116,12 +116,20 @@ struct CameraSettingsView: View {
 
             List {
                 ForEach(cameras) { camera in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(camera.displayName)
-                            .font(.headline)
-                        Text(camera.host)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(camera.displayName)
+                                .font(.headline)
+                            Text(camera.host)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button(role: .destructive) {
+                            deleteCamera(camera)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
                     }
                 }
                 .onDelete(perform: deleteCameras)
@@ -163,6 +171,10 @@ struct CameraSettingsView: View {
 
     private func deleteCameras(at offsets: IndexSet) {
         cameras.remove(atOffsets: offsets)
+    }
+
+    private func deleteCamera(_ camera: CameraConfig) {
+        cameras.removeAll { $0.id == camera.id }
     }
 
     private func addCamera() {
