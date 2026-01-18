@@ -264,11 +264,16 @@ struct AvailabilityProbe: View {
     private func checkAvailability() async -> Bool {
         guard let url else { return false }
         do {
-            let (_, response) = try await URLSession.shared.data(from: url)
-            if let http = response as? HTTPURLResponse {
-                return (200...299).contains(http.statusCode)
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let http = response as? HTTPURLResponse,
+                  (200...299).contains(http.statusCode) else {
+                return false
             }
-            return true
+            if let contentType = http.value(forHTTPHeaderField: "Content-Type"),
+               contentType.localizedCaseInsensitiveContains("image/") {
+                return true
+            }
+            return data.isJPEG
         } catch {
             return false
         }
@@ -324,6 +329,16 @@ struct SnapshotView: View {
         } catch {
             // Ignore transient errors while polling.
         }
+    }
+}
+
+private extension Data {
+    var isJPEG: Bool {
+        guard count >= 4 else { return false }
+        return self[startIndex] == 0xFF
+            && self[index(after: startIndex)] == 0xD8
+            && self[index(before: endIndex)] == 0xD9
+            && self[index(before: index(before: endIndex))] == 0xFF
     }
 }
 
