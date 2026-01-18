@@ -21,6 +21,41 @@ enum SnapshotStatus {
     case failed
 }
 
+enum CameraNameLocation: String, CaseIterable, Identifiable, Hashable, Codable {
+    case topLeft
+    case topRight
+    case bottomLeft
+    case bottomRight
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .topLeft:
+            return "Top Left"
+        case .topRight:
+            return "Top Right"
+        case .bottomLeft:
+            return "Bottom Left"
+        case .bottomRight:
+            return "Bottom Right"
+        }
+    }
+
+    var alignment: Alignment {
+        switch self {
+        case .topLeft:
+            return .topLeading
+        case .topRight:
+            return .topTrailing
+        case .bottomLeft:
+            return .bottomLeading
+        case .bottomRight:
+            return .bottomTrailing
+        }
+    }
+}
+
 enum GridOption: String, CaseIterable, Identifiable, Hashable, Codable {
     case grid2x2
     case grid2x4

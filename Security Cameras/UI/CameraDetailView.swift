@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct CameraDetailView: View {
+    @ObservedObject var viewModel: AppViewModel
     let camera: CameraConfig
     @State private var snapshotStatus: SnapshotStatus = .loading
 
@@ -26,17 +27,22 @@ struct CameraDetailView: View {
                         .ignoresSafeArea()
 
                     VStack(alignment: .leading, spacing: 16) {
-                        HStack {
-                            Text(camera.displayName)
-                                .font(.title2)
-                                .foregroundStyle(.white)
-                            Spacer()
-                        }
+                        ZStack(alignment: viewModel.cameraNameLocation.alignment) {
+                            SnapshotView(url: camera.snapshotURL) { status in
+                                snapshotStatus = status
+                            }
+                            .cornerRadius(8)
 
-                        SnapshotView(url: camera.snapshotURL) { status in
-                            snapshotStatus = status
+                            if viewModel.showCameraNameInDisplay {
+                                Text(camera.displayName)
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
+                                    .padding(8)
+                                    .background(.black.opacity(0.6))
+                                    .cornerRadius(8)
+                                    .padding(8)
+                            }
                         }
-                        .cornerRadius(8)
 
                         Text(camera.host)
                             .foregroundStyle(.white.opacity(0.7))

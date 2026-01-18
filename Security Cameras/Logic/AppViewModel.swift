@@ -12,6 +12,9 @@ import Combine
 final class AppViewModel: ObservableObject {
     @AppStorage("camerasJSON") private var camerasJSON: String = "[]"
     @AppStorage("gridAssignmentsJSON") private var gridAssignmentsJSON: String = "{}"
+    @AppStorage("showCameraNameInDisplay") private var showCameraNameInDisplayRaw = true
+    @AppStorage("cameraNameLocation") private var cameraNameLocationRaw = CameraNameLocation.topLeft.rawValue
+    private var isLoading = true
 
     @Published var cameras: [CameraConfig] = [] {
         didSet {
@@ -24,13 +27,26 @@ final class AppViewModel: ObservableObject {
             persistGridAssignments()
         }
     }
+    @Published var showCameraNameInDisplay = true {
+        didSet {
+            showCameraNameInDisplayRaw = showCameraNameInDisplay
+        }
+    }
+    @Published var cameraNameLocation: CameraNameLocation = .topLeft {
+        didSet {
+            cameraNameLocationRaw = cameraNameLocation.rawValue
+        }
+    }
     @Published var showSettings = false
     @Published var selectedSidebarItem: SidebarItem?
     @Published var availability: [CameraConfig.ID: Bool] = [:]
 
     init() {
-        loadCameras()
         loadGridAssignments()
+        loadCameras()
+        showCameraNameInDisplay = showCameraNameInDisplayRaw
+        cameraNameLocation = CameraNameLocation(rawValue: cameraNameLocationRaw) ?? .topLeft
+        isLoading = false
     }
 
     var selectedCamera: CameraConfig? {
@@ -94,10 +110,17 @@ final class AppViewModel: ObservableObject {
             gridAssignments = [:]
             return
         }
-        gridAssignments = decoded.assignments
+        var assignments: [GridOption: [CameraConfig.ID?]] = [:]
+        for (key, value) in decoded.assignments {
+            if let option = GridOption(rawValue: key) {
+                assignments[option] = value
+            }
+        }
+        gridAssignments = assignments
     }
 
     private func persistCameras() {
+        guard !isLoading else { return }
         guard let data = try? JSONEncoder().encode(cameras),
               let json = String(data: data, encoding: .utf8) else {
             return
@@ -106,7 +129,12 @@ final class AppViewModel: ObservableObject {
     }
 
     private func persistGridAssignments() {
-        let payload = GridAssignmentsPayload(assignments: gridAssignments)
+        guard !isLoading else { return }
+        var rawAssignments: [String: [CameraConfig.ID?]] = [:]
+        for (option, value) in gridAssignments {
+            rawAssignments[option.rawValue] = value
+        }
+        let payload = GridAssignmentsPayload(assignments: rawAssignments)
         guard let data = try? JSONEncoder().encode(payload),
               let json = String(data: data, encoding: .utf8) else {
             return
@@ -150,7 +178,7 @@ final class AppViewModel: ObservableObject {
 }
 
 private struct GridAssignmentsPayload: Codable {
-    let assignments: [GridOption: [CameraConfig.ID?]]
+    let assignments: [String: [CameraConfig.ID?]]
 }
 
 private extension Array {

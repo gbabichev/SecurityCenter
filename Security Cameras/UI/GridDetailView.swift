@@ -38,7 +38,7 @@ struct GridDetailView: View {
     private func gridCell(for index: Int) -> some View {
         let cameraID = viewModel.gridCameraID(option: option, index: index)
         let camera = viewModel.cameras.first { $0.id == cameraID }
-        ZStack(alignment: .topLeading) {
+        ZStack(alignment: viewModel.cameraNameLocation.alignment) {
             if let camera {
                 SnapshotView(url: camera.snapshotURL) { _ in }
                     .cornerRadius(8)
@@ -61,13 +61,19 @@ struct GridDetailView: View {
                     viewModel.setGridCameraID(option: option, index: index, cameraID: nil)
                 }
             } label: {
-                Text(camera?.displayName ?? "Select Camera")
-                    .font(.caption)
-                    .foregroundStyle(.white)
-                    .padding(6)
-                    .background(.black.opacity(0.6))
-                    .cornerRadius(6)
-                    .padding(8)
+                if viewModel.showCameraNameInDisplay {
+                    Text(camera?.displayName ?? "Select Camera")
+                        .font(.caption)
+                        .foregroundStyle(.white)
+                        .padding(6)
+                        .background(.black.opacity(0.6))
+                        .cornerRadius(6)
+                        .padding(8)
+                } else {
+                    Image(systemName: "ellipsis.circle")
+                        .foregroundStyle(.white.opacity(0.9))
+                        .padding(8)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

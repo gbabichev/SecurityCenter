@@ -46,6 +46,16 @@ struct CameraSettingsView: View {
             }
 
             Form {
+                Section("Display") {
+                    Toggle("Show Camera Name in Display", isOn: $viewModel.showCameraNameInDisplay)
+                    Picker("Camera Name Location", selection: $viewModel.cameraNameLocation) {
+                        ForEach(CameraNameLocation.allCases) { location in
+                            Text(location.title)
+                                .tag(location)
+                        }
+                    }
+                }
+
                 Section("Add Camera") {
                     TextField("Name", text: $draft.name)
                     TextField("IP or Host", text: $draft.host)

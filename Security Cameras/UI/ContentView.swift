@@ -44,7 +44,7 @@ struct ContentView: View {
             }
         } detail: {
             if let selectedCamera = viewModel.selectedCamera {
-                CameraDetailView(camera: selectedCamera)
+                CameraDetailView(viewModel: viewModel, camera: selectedCamera)
                     .ignoresSafeArea()
             } else if let selectedGrid = viewModel.selectedGridOption {
                 GridDetailView(viewModel: viewModel, option: selectedGrid)
