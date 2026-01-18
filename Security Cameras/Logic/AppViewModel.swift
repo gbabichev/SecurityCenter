@@ -19,7 +19,7 @@ final class AppViewModel: ObservableObject {
         }
     }
     @Published var showSettings = false
-    @Published var selectedCameraID: CameraConfig.ID?
+    @Published var selectedSidebarItem: SidebarItem?
     @Published var availability: [CameraConfig.ID: Bool] = [:]
 
     init() {
@@ -27,8 +27,13 @@ final class AppViewModel: ObservableObject {
     }
 
     var selectedCamera: CameraConfig? {
-        guard let selectedCameraID else { return nil }
-        return cameras.first { $0.id == selectedCameraID }
+        guard case let .camera(cameraID) = selectedSidebarItem else { return nil }
+        return cameras.first { $0.id == cameraID }
+    }
+
+    var selectedGridOption: GridOption? {
+        guard case let .grid(option) = selectedSidebarItem else { return nil }
+        return option
     }
 
     func updateAvailability(for cameraID: CameraConfig.ID, isAvailable: Bool) {
@@ -76,8 +81,8 @@ final class AppViewModel: ObservableObject {
     private func reconcileSelectionAndAvailability() {
         let ids = Set(cameras.map(\.id))
         availability = availability.filter { ids.contains($0.key) }
-        if let selectedCameraID, !ids.contains(selectedCameraID) {
-            self.selectedCameraID = nil
+        if case let .camera(cameraID) = selectedSidebarItem, !ids.contains(cameraID) {
+            selectedSidebarItem = nil
         }
     }
 }

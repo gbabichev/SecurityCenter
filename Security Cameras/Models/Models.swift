@@ -21,6 +21,56 @@ enum SnapshotStatus {
     case failed
 }
 
+enum GridOption: String, CaseIterable, Identifiable, Hashable {
+    case grid2x2
+    case grid2x4
+    case grid4x4
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .grid2x2:
+            return "2x2"
+        case .grid2x4:
+            return "2x4"
+        case .grid4x4:
+            return "4x4"
+        }
+    }
+
+    var columns: Int {
+        switch self {
+        case .grid2x2:
+            return 2
+        case .grid2x4:
+            return 2
+        case .grid4x4:
+            return 4
+        }
+    }
+
+    var rows: Int {
+        switch self {
+        case .grid2x2:
+            return 2
+        case .grid2x4:
+            return 4
+        case .grid4x4:
+            return 4
+        }
+    }
+
+    var maxItems: Int {
+        columns * rows
+    }
+}
+
+enum SidebarItem: Hashable {
+    case camera(CameraConfig.ID)
+    case grid(GridOption)
+}
+
 struct CameraConfig: Identifiable, Codable, Hashable {
     var id = UUID()
     var name: String

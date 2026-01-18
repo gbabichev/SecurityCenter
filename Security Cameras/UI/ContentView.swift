@@ -12,31 +12,42 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-            if viewModel.cameras.isEmpty {
-                ContentUnavailableView(
-                    "No Cameras",
-                    systemImage: "video",
-                    description: Text("Open Settings to add your first IP camera.")
-                )
-            } else {
-                List(viewModel.cameras, selection: $viewModel.selectedCameraID) { camera in
-                    HStack {
-                        Text(camera.displayName)
-                        Spacer()
-                        AvailabilityIndicator(isAvailable: viewModel.availability[camera.id] ?? false)
-                    }
-                    .contentShape(Rectangle())
-                    .tag(camera.id)
-                    .background(
-                        AvailabilityProbe(url: camera.snapshotURL) { isAvailable in
-                            viewModel.updateAvailability(for: camera.id, isAvailable: isAvailable)
+            List(selection: $viewModel.selectedSidebarItem) {
+                Section("Cameras") {
+                    if viewModel.cameras.isEmpty {
+                        Text("No Cameras")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(viewModel.cameras) { camera in
+                            HStack {
+                                Text(camera.displayName)
+                                Spacer()
+                                AvailabilityIndicator(isAvailable: viewModel.availability[camera.id] ?? false)
+                            }
+                            .contentShape(Rectangle())
+                            .tag(SidebarItem.camera(camera.id))
+                            .background(
+                                AvailabilityProbe(url: camera.snapshotURL) { isAvailable in
+                                    viewModel.updateAvailability(for: camera.id, isAvailable: isAvailable)
+                                }
+                            )
                         }
-                    )
+                    }
+                }
+
+                Section("Grids") {
+                    ForEach(GridOption.allCases) { option in
+                        Text(option.title)
+                            .tag(SidebarItem.grid(option))
+                    }
                 }
             }
         } detail: {
             if let selectedCamera = viewModel.selectedCamera {
                 CameraDetailView(camera: selectedCamera)
+                    .ignoresSafeArea()
+            } else if let selectedGrid = viewModel.selectedGridOption {
+                GridDetailView(cameras: viewModel.cameras, option: selectedGrid)
                     .ignoresSafeArea()
             } else {
                 ContentUnavailableView(
