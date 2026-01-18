@@ -67,6 +67,7 @@ struct ContentView: View {
                 }
             }
         }
+        .windowToolbarFullScreenVisibility(.onHover)
         .sheet(isPresented: $viewModel.showSettings) {
             CameraSettingsView(viewModel: viewModel)
         }
