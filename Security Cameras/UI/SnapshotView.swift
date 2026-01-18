@@ -50,29 +50,29 @@ struct SnapshotView: View {
             let (data, response) = try await URLSession.shared.data(from: url)
             guard let http = response as? HTTPURLResponse,
                   (200...299).contains(http.statusCode) else {
-                await markSnapshotFailure()
+                markSnapshotFailure()
                 return
             }
             if let contentType = http.value(forHTTPHeaderField: "Content-Type"),
                !contentType.localizedCaseInsensitiveContains("image/"),
                !data.isJPEG {
-                await markSnapshotFailure()
+                markSnapshotFailure()
                 return
             }
 #if os(iOS)
             guard let decoded = UIImage(data: data) else {
-                await markSnapshotFailure()
+                markSnapshotFailure()
                 return
             }
 #else
             guard let decoded = NSImage(data: data) else {
-                await markSnapshotFailure()
+                markSnapshotFailure()
                 return
             }
 #endif
-            await markSnapshotSuccess(decoded)
+            markSnapshotSuccess(decoded)
         } catch {
-            await markSnapshotFailure()
+            markSnapshotFailure()
         }
     }
 

@@ -48,7 +48,7 @@ struct CameraDetailView: View {
                 .frame(minWidth: 900, minHeight: 600)
             }
         }
-        .onChange(of: camera.snapshotURL) { _ in
+        .onChange(of: camera.snapshotURL) {
             snapshotStatus = .loading
         }
     }
