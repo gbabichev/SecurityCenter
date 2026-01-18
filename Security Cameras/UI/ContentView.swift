@@ -47,7 +47,7 @@ struct ContentView: View {
                 CameraDetailView(camera: selectedCamera)
                     .ignoresSafeArea()
             } else if let selectedGrid = viewModel.selectedGridOption {
-                GridDetailView(cameras: viewModel.cameras, option: selectedGrid)
+                GridDetailView(viewModel: viewModel, option: selectedGrid)
                     .ignoresSafeArea()
             } else {
                 ContentUnavailableView(

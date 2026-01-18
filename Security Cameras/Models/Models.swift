@@ -21,7 +21,7 @@ enum SnapshotStatus {
     case failed
 }
 
-enum GridOption: String, CaseIterable, Identifiable, Hashable {
+enum GridOption: String, CaseIterable, Identifiable, Hashable, Codable {
     case grid2x2
     case grid2x4
     case grid4x4

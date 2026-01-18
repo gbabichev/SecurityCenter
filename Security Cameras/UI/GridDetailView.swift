@@ -8,11 +8,11 @@
 import SwiftUI
 
 struct GridDetailView: View {
-    let cameras: [CameraConfig]
+    @ObservedObject var viewModel: AppViewModel
     let option: GridOption
 
     private var gridCameras: [CameraConfig] {
-        Array(cameras.prefix(option.maxItems))
+        Array(viewModel.cameras.prefix(option.maxItems))
     }
 
     var body: some View {
@@ -25,16 +25,7 @@ struct GridDetailView: View {
                     HStack(spacing: 12) {
                         ForEach(0..<option.columns, id: \.self) { column in
                             let index = row * option.columns + column
-                            if index < gridCameras.count {
-                                gridCell(for: gridCameras[index])
-                            } else {
-                                Rectangle()
-                                    .fill(.black)
-                                    .overlay(
-                                        Rectangle()
-                                            .strokeBorder(.white.opacity(0.08), lineWidth: 1)
-                                    )
-                            }
+                            gridCell(for: index)
                         }
                     }
                 }
@@ -44,17 +35,40 @@ struct GridDetailView: View {
     }
 
     @ViewBuilder
-    private func gridCell(for camera: CameraConfig) -> some View {
+    private func gridCell(for index: Int) -> some View {
+        let cameraID = viewModel.gridCameraID(option: option, index: index)
+        let camera = viewModel.cameras.first { $0.id == cameraID }
         ZStack(alignment: .topLeading) {
-            SnapshotView(url: camera.snapshotURL) { _ in }
-                .cornerRadius(8)
-            Text(camera.displayName)
-                .font(.caption)
-                .foregroundStyle(.white)
-                .padding(6)
-                .background(.black.opacity(0.6))
-                .cornerRadius(6)
-                .padding(8)
+            if let camera {
+                SnapshotView(url: camera.snapshotURL) { _ in }
+                    .cornerRadius(8)
+            } else {
+                Rectangle()
+                    .fill(.black)
+                    .overlay(
+                        Rectangle()
+                            .strokeBorder(.white.opacity(0.08), lineWidth: 1)
+                    )
+            }
+
+            Menu {
+                ForEach(viewModel.cameras) { camera in
+                    Button(camera.displayName) {
+                        viewModel.setGridCameraID(option: option, index: index, cameraID: camera.id)
+                    }
+                }
+                Button("Clear") {
+                    viewModel.setGridCameraID(option: option, index: index, cameraID: nil)
+                }
+            } label: {
+                Text(camera?.displayName ?? "Select Camera")
+                    .font(.caption)
+                    .foregroundStyle(.white)
+                    .padding(6)
+                    .background(.black.opacity(0.6))
+                    .cornerRadius(6)
+                    .padding(8)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
