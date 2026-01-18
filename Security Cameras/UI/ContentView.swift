@@ -43,23 +43,34 @@ struct ContentView: View {
                 }
             }
         } detail: {
-            if let selectedCamera = viewModel.selectedCamera {
-                CameraDetailView(viewModel: viewModel, camera: selectedCamera)
-                    .ignoresSafeArea()
-            } else if let selectedGrid = viewModel.selectedGridOption {
-                GridDetailView(viewModel: viewModel, option: selectedGrid)
-                    .ignoresSafeArea()
-            } else {
-                ContentUnavailableView(
-                    "Select a Camera",
-                    systemImage: "video",
-                    description: Text("Choose a camera from the sidebar.")
-                )
+            NavigationStack {
+                if let selectedCamera = viewModel.selectedCamera {
+                    CameraDetailView(viewModel: viewModel, camera: selectedCamera)
+                        .ignoresSafeArea()
+                } else if let selectedGrid = viewModel.selectedGridOption {
+                    GridDetailView(viewModel: viewModel, option: selectedGrid)
+                        .ignoresSafeArea()
+                } else {
+                    ContentUnavailableView(
+                        "Select a Camera",
+                        systemImage: "video",
+                        description: Text("Choose a camera from the sidebar.")
+                    )
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        viewModel.showSettings = true
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                }
             }
         }
         .navigationTitle("Security Cameras")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .automatic) {
                 Button {
                     viewModel.showSettings = true
                 } label: {
@@ -67,7 +78,7 @@ struct ContentView: View {
                 }
             }
         }
-        .windowToolbarFullScreenVisibility(.onHover)
+        //.windowToolbarFullScreenVisibility(.onHover)
         .sheet(isPresented: $viewModel.showSettings) {
             CameraSettingsView(viewModel: viewModel)
         }
