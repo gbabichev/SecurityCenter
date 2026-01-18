@@ -10,9 +10,22 @@
 		5E6F6CB12F11C26E0089C377 /* Security Cameras.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Security Cameras.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5EE2D8EE2F1D35A5005475D5 /* Exceptions for "Security Cameras" folder in "Security Cameras" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5E6F6CB02F11C26E0089C377 /* Security Cameras */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		5E6F6CB32F11C26E0089C377 /* Security Cameras */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5EE2D8EE2F1D35A5005475D5 /* Exceptions for "Security Cameras" folder in "Security Cameras" target */,
+			);
 			path = "Security Cameras";
 			sourceTree = "<group>";
 		};

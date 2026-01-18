@@ -7,47 +7,35 @@
 
 import SwiftUI
 
-#if os(iOS)
-import UIKit
-typealias PlatformImage = UIImage
-#else
-import AppKit
-typealias PlatformImage = NSImage
-#endif
-
 struct ContentView: View {
-    @AppStorage("camerasJSON") private var camerasJSON: String = "[]"
-    @State private var cameras: [CameraConfig] = []
-    @State private var showSettings = false
-    @State private var selectedCameraID: CameraConfig.ID?
-    @State private var availability: [CameraConfig.ID: Bool] = [:]
+    @StateObject private var viewModel = AppViewModel()
 
     var body: some View {
         NavigationSplitView {
-            if cameras.isEmpty {
+            if viewModel.cameras.isEmpty {
                 ContentUnavailableView(
                     "No Cameras",
                     systemImage: "video",
                     description: Text("Open Settings to add your first IP camera.")
                 )
             } else {
-                List(cameras, selection: $selectedCameraID) { camera in
+                List(viewModel.cameras, selection: $viewModel.selectedCameraID) { camera in
                     HStack {
                         Text(camera.displayName)
                         Spacer()
-                        AvailabilityIndicator(isAvailable: availability[camera.id] ?? false)
+                        AvailabilityIndicator(isAvailable: viewModel.availability[camera.id] ?? false)
                     }
                     .contentShape(Rectangle())
                     .tag(camera.id)
                     .background(
                         AvailabilityProbe(url: camera.snapshotURL) { isAvailable in
-                            availability[camera.id] = isAvailable
+                            viewModel.updateAvailability(for: camera.id, isAvailable: isAvailable)
                         }
                     )
                 }
             }
         } detail: {
-            if let selectedCamera = selectedCamera {
+            if let selectedCamera = viewModel.selectedCamera {
                 CameraDetailView(camera: selectedCamera)
                     .ignoresSafeArea()
             } else {
@@ -62,43 +50,20 @@ struct ContentView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    showSettings = true
+                    viewModel.showSettings = true
                 } label: {
                     Label("Settings", systemImage: "gearshape")
                 }
             }
         }
-        .sheet(isPresented: $showSettings) {
-            CameraSettingsView(cameras: $cameras)
+        .sheet(isPresented: $viewModel.showSettings) {
+            CameraSettingsView(viewModel: viewModel)
         }
-        .onAppear(perform: loadCameras)
-        .onChange(of: cameras, saveCameras)
-    }
-
-    private var selectedCamera: CameraConfig? {
-        guard let selectedCameraID else { return nil }
-        return cameras.first { $0.id == selectedCameraID }
-    }
-
-    private func loadCameras() {
-        guard let data = camerasJSON.data(using: .utf8),
-              let decoded = try? JSONDecoder().decode([CameraConfig].self, from: data) else {
-            return
-        }
-        cameras = decoded
-    }
-
-    private func saveCameras() {
-        guard let data = try? JSONEncoder().encode(cameras),
-              let json = String(data: data, encoding: .utf8) else {
-            return
-        }
-        camerasJSON = json
     }
 }
 
 struct CameraSettingsView: View {
-    @Binding var cameras: [CameraConfig]
+    @ObservedObject var viewModel: AppViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var draft = CameraConfig(
         name: "",
@@ -115,7 +80,7 @@ struct CameraSettingsView: View {
                 .font(.title2)
 
             List {
-                ForEach(cameras) { camera in
+                ForEach(viewModel.cameras) { camera in
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(camera.displayName)
@@ -126,13 +91,13 @@ struct CameraSettingsView: View {
                         }
                         Spacer()
                         Button(role: .destructive) {
-                            deleteCamera(camera)
+                            viewModel.deleteCamera(camera)
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
                     }
                 }
-                .onDelete(perform: deleteCameras)
+                .onDelete(perform: viewModel.deleteCameras)
             }
 
             Form {
@@ -160,7 +125,8 @@ struct CameraSettingsView: View {
                 }
                 Spacer()
                 Button("Add Camera") {
-                    addCamera()
+                    viewModel.addCamera(from: draft)
+                    resetDraft()
                 }
                 .disabled(draft.host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -169,26 +135,7 @@ struct CameraSettingsView: View {
         .frame(minWidth: 520, minHeight: 560)
     }
 
-    private func deleteCameras(at offsets: IndexSet) {
-        cameras.remove(atOffsets: offsets)
-    }
-
-    private func deleteCamera(_ camera: CameraConfig) {
-        cameras.removeAll { $0.id == camera.id }
-    }
-
-    private func addCamera() {
-        let trimmedHost = draft.host.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedName = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let camera = CameraConfig(
-            name: trimmedName,
-            host: trimmedHost,
-            username: draft.username.trimmingCharacters(in: .whitespacesAndNewlines),
-            password: draft.password,
-            channel: draft.channel,
-            useHTTPS: draft.useHTTPS
-        )
-        cameras.append(camera)
+    private func resetDraft() {
         draft = CameraConfig(
             name: "",
             host: "",
@@ -305,12 +252,6 @@ struct AvailabilityProbe: View {
     }
 }
 
-enum SnapshotStatus {
-    case loading
-    case ok
-    case failed
-}
-
 struct SnapshotView: View {
     let url: URL?
     @State private var image: PlatformImage?
@@ -390,44 +331,5 @@ struct SnapshotView: View {
     private func markSnapshotSuccess(_ decoded: PlatformImage) {
         image = decoded
         onStatusChange(.ok)
-    }
-}
-
-private extension Data {
-    var isJPEG: Bool {
-        guard count >= 4 else { return false }
-        return self[startIndex] == 0xFF
-            && self[index(after: startIndex)] == 0xD8
-            && self[index(before: endIndex)] == 0xD9
-            && self[index(before: index(before: endIndex))] == 0xFF
-    }
-}
-
-struct CameraConfig: Identifiable, Codable, Hashable {
-    var id = UUID()
-    var name: String
-    var host: String
-    var username: String
-    var password: String
-    var channel: Int
-    var useHTTPS: Bool
-
-    var displayName: String {
-        name.isEmpty ? "Camera" : name
-    }
-
-    var snapshotURL: URL? {
-        let scheme = useHTTPS ? "https" : "http"
-        var components = URLComponents()
-        components.scheme = scheme
-        components.host = host
-        components.path = "/cgi-bin/api.cgi"
-        components.queryItems = [
-            URLQueryItem(name: "cmd", value: "Snap"),
-            URLQueryItem(name: "channel", value: "\(channel)"),
-            URLQueryItem(name: "user", value: username),
-            URLQueryItem(name: "password", value: password)
-        ]
-        return components.url
     }
 }
