@@ -71,6 +71,37 @@ final class AppViewModel: ObservableObject {
         cameras.removeAll { $0.id == camera.id }
     }
 
+    func exportConfigurationData() throws -> Data {
+        let payload = AppConfigurationPayload(
+            version: 1,
+            cameras: cameras,
+            gridAssignments: gridAssignments.reduce(into: [:]) { result, item in
+                result[item.key.rawValue] = item.value
+            },
+            showCameraNameInDisplay: showCameraNameInDisplay,
+            cameraNameLocation: cameraNameLocation
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(payload)
+    }
+
+    func importConfigurationData(_ data: Data) throws {
+        let decoder = JSONDecoder()
+        let payload = try decoder.decode(AppConfigurationPayload.self, from: data)
+
+        cameras = payload.cameras
+        gridAssignments = payload.gridAssignments.reduce(into: [:]) { result, item in
+            if let option = GridOption(rawValue: item.key) {
+                result[option] = item.value
+            }
+        }
+        showCameraNameInDisplay = payload.showCameraNameInDisplay
+        cameraNameLocation = payload.cameraNameLocation
+        availability = [:]
+        selectedSidebarItem = cameras.first.map { .camera($0.id) }
+    }
+
     func validateAndSaveCamera(from draft: CameraConfig, editing existingID: CameraConfig.ID? = nil) async throws -> CameraConfig {
         var camera = draft.sanitized
         if let existingID {
@@ -232,6 +263,14 @@ final class AppViewModel: ObservableObject {
 
 private struct GridAssignmentsPayload: Codable {
     let assignments: [String: [CameraConfig.ID?]]
+}
+
+private struct AppConfigurationPayload: Codable {
+    let version: Int
+    let cameras: [CameraConfig]
+    let gridAssignments: [String: [CameraConfig.ID?]]
+    let showCameraNameInDisplay: Bool
+    let cameraNameLocation: CameraNameLocation
 }
 
 private extension Array {

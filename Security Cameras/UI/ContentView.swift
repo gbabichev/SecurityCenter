@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var viewModel = AppViewModel()
+    @ObservedObject var viewModel: AppViewModel
 
     var body: some View {
         #if os(macOS)
