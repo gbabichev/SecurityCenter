@@ -45,7 +45,13 @@ struct SnapshotView: View {
     }
 
     private func fetchSnapshot() async {
-        guard let url else { return }
+        guard let url else {
+            await MainActor.run {
+                image = nil
+                onStatusChange(.failed)
+            }
+            return
+        }
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
             guard let http = response as? HTTPURLResponse,

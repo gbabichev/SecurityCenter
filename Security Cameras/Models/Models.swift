@@ -21,6 +21,35 @@ enum SnapshotStatus {
     case failed
 }
 
+enum CameraValidationError: LocalizedError {
+    case missingHost
+    case invalidURL
+    case duplicateCamera
+    case unauthorized
+    case unexpectedStatus(Int)
+    case invalidResponse
+    case transport(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .missingHost:
+            return "Enter camera IP address or host name."
+        case .invalidURL:
+            return "Camera address is not valid."
+        case .duplicateCamera:
+            return "Camera with same host, channel, and protocol already exists."
+        case .unauthorized:
+            return "Camera rejected username or password."
+        case .unexpectedStatus(let statusCode):
+            return "Camera returned HTTP \(statusCode)."
+        case .invalidResponse:
+            return "Camera responded, but not with snapshot image."
+        case .transport(let message):
+            return message
+        }
+    }
+}
+
 enum CameraNameLocation: String, CaseIterable, Identifiable, Hashable, Codable {
     case topLeft
     case topRight
@@ -119,6 +148,18 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         name.isEmpty ? "Camera" : name
     }
 
+    var sanitized: CameraConfig {
+        CameraConfig(
+            id: id,
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            host: host.trimmingCharacters(in: .whitespacesAndNewlines),
+            username: username.trimmingCharacters(in: .whitespacesAndNewlines),
+            password: password,
+            channel: channel,
+            useHTTPS: useHTTPS
+        )
+    }
+
     var snapshotURL: URL? {
         let scheme = useHTTPS ? "https" : "http"
         var components = URLComponents()
@@ -132,6 +173,34 @@ struct CameraConfig: Identifiable, Codable, Hashable {
             URLQueryItem(name: "password", value: password)
         ]
         return components.url
+    }
+
+    var connectionSummary: String {
+        "\(useHTTPS ? "HTTPS" : "HTTP") • Channel \(channel)"
+    }
+
+    var formattedSnapshotURL: String {
+        guard var components = snapshotURL.flatMap({ URLComponents(url: $0, resolvingAgainstBaseURL: false) }) else {
+            return "Invalid camera address"
+        }
+        components.queryItems = [
+            URLQueryItem(name: "cmd", value: "Snap"),
+            URLQueryItem(name: "channel", value: "\(channel)"),
+            URLQueryItem(name: "user", value: username),
+            URLQueryItem(name: "password", value: password.isEmpty ? "" : "••••••")
+        ]
+        return components.string ?? "Invalid camera address"
+    }
+
+    static var emptyDraft: CameraConfig {
+        CameraConfig(
+            name: "",
+            host: "",
+            username: "admin",
+            password: "",
+            channel: 0,
+            useHTTPS: false
+        )
     }
 }
 
