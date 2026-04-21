@@ -9,19 +9,14 @@ import SwiftUI
 
 struct SnapshotView: View {
     let url: URL?
+    var contentMode: ContentMode = .fit
     @State private var image: PlatformImage?
     let onStatusChange: (SnapshotStatus) -> Void
 
     var body: some View {
         ZStack {
             if let image {
-#if os(iOS)
-                Image(uiImage: image)
-                    .resizable()
-#else
-                Image(nsImage: image)
-                    .resizable()
-#endif
+                snapshotImage(image)
             } else {
                 Rectangle()
                     .fill(.quaternary)
@@ -29,7 +24,9 @@ struct SnapshotView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .aspectRatio(16 / 9, contentMode: .fill)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .task(id: url) {
             image = nil
             onStatusChange(.loading)
@@ -92,5 +89,26 @@ struct SnapshotView: View {
     private func markSnapshotSuccess(_ decoded: PlatformImage) {
         image = decoded
         onStatusChange(.ok)
+    }
+
+    @ViewBuilder
+    private func snapshotImage(_ image: PlatformImage) -> some View {
+#if os(iOS)
+        let content = Image(uiImage: image).resizable()
+#else
+        let content = Image(nsImage: image).resizable()
+#endif
+        switch contentMode {
+        case .fill:
+            content
+                .scaledToFill()
+                .clipped()
+        case .fit:
+            content
+                .scaledToFit()
+        @unknown default:
+            content
+                .scaledToFit()
+        }
     }
 }

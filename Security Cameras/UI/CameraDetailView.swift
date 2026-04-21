@@ -22,36 +22,26 @@ struct CameraDetailView: View {
                 )
                 .background(snapshotProbeView)
             } else {
-                ZStack {
-                    Color.black
-                        .ignoresSafeArea()
+                GeometryReader { proxy in
+                    ZStack {
+                        Color.black
+                            .ignoresSafeArea()
 
-                    VStack(alignment: .leading, spacing: 16) {
-                        ZStack(alignment: viewModel.cameraNameLocation.alignment) {
-                            SnapshotView(url: camera.snapshotURL) { status in
+                        ZStack(alignment: overlayAlignment) {
+                            SnapshotView(url: camera.snapshotURL, contentMode: .fit) { status in
                                 snapshotStatus = status
                             }
-                            .cornerRadius(8)
 
-                            if viewModel.showCameraNameInDisplay {
-                                Text(camera.displayName)
-                                    .font(.headline)
-                                    .foregroundStyle(.white)
-                                    .padding(8)
-                                    .background(.black.opacity(0.6))
-                                    .cornerRadius(8)
-                                    .padding(8)
-                            }
+                            cameraOverlay
                         }
-
-                        Text(camera.host)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .font(.subheadline)
+                        .padding(16)
+                        .frame(
+                            width: proxy.size.width,
+                            height: proxy.size.height,
+                            alignment: .center
+                        )
                     }
-                    .padding()
-                    .frame(maxWidth: 1200, maxHeight: 900)
                 }
-                .frame(minWidth: 900, minHeight: 600)
             }
         }
         .onChange(of: camera.snapshotURL) {
@@ -65,5 +55,32 @@ struct CameraDetailView: View {
         }
         .frame(width: 1, height: 1)
         .opacity(0)
+    }
+
+    private var overlayAlignment: Alignment {
+        switch viewModel.cameraNameLocation {
+        case .topLeft:
+            .topLeading
+        case .topRight:
+            .topTrailing
+        case .bottomLeft:
+            .bottomLeading
+        case .bottomRight:
+            .bottomTrailing
+        }
+    }
+
+    @ViewBuilder
+    private var cameraOverlay: some View {
+        if viewModel.showCameraNameInDisplay {
+            Text(camera.displayName)
+                .font(.headline)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(.black.opacity(0.7), in: Capsule())
+                .padding(20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: overlayAlignment)
+        }
     }
 }

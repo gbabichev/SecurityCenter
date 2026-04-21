@@ -11,26 +11,37 @@ struct GridDetailView: View {
     @ObservedObject var viewModel: AppViewModel
     let option: GridOption
 
-    private var gridCameras: [CameraConfig] {
-        Array(viewModel.cameras.prefix(option.maxItems))
-    }
-
     var body: some View {
-        ZStack {
-            Color.black
-                .ignoresSafeArea()
+        GeometryReader { proxy in
+            let spacing = 12.0
+            let padding = 16.0
+            let cellWidth = max(
+                0,
+                (proxy.size.width - (padding * 2) - (spacing * Double(option.columns - 1))) / Double(option.columns)
+            )
+            let cellHeight = max(
+                0,
+                (proxy.size.height - (padding * 2) - (spacing * Double(option.rows - 1))) / Double(option.rows)
+            )
 
-            VStack(spacing: 12) {
-                ForEach(0..<option.rows, id: \.self) { row in
-                    HStack(spacing: 12) {
-                        ForEach(0..<option.columns, id: \.self) { column in
-                            let index = row * option.columns + column
-                            gridCell(for: index)
+            ZStack {
+                Color.black
+                    .ignoresSafeArea()
+
+                VStack(spacing: spacing) {
+                    ForEach(0..<option.rows, id: \.self) { row in
+                        HStack(spacing: spacing) {
+                            ForEach(0..<option.columns, id: \.self) { column in
+                                let index = row * option.columns + column
+                                gridCell(for: index)
+                                    .frame(width: cellWidth, height: cellHeight)
+                            }
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .padding(padding)
             }
-            .padding()
         }
     }
 
@@ -40,8 +51,7 @@ struct GridDetailView: View {
         let camera = viewModel.cameras.first { $0.id == cameraID }
         ZStack(alignment: viewModel.cameraNameLocation.alignment) {
             if let camera {
-                SnapshotView(url: camera.snapshotURL) { _ in }
-                    .cornerRadius(8)
+                SnapshotView(url: camera.snapshotURL, contentMode: .fit) { _ in }
             } else {
                 Rectangle()
                     .fill(.black)
@@ -76,6 +86,6 @@ struct GridDetailView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }

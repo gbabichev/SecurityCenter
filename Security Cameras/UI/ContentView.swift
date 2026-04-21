@@ -11,6 +11,15 @@ struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
 
     var body: some View {
+        #if os(macOS)
+        content
+            .windowToolbarFullScreenVisibility(.onHover)
+        #else
+        content
+        #endif
+    }
+
+    private var content: some View {
         NavigationSplitView {
             List(selection: $viewModel.selectedSidebarItem) {
                 Section("Cameras") {
@@ -58,15 +67,6 @@ struct ContentView: View {
                     )
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .automatic) {
-                    Button {
-                        viewModel.showSettings = true
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
-                    }
-                }
-            }
         }
         .navigationTitle("Security Cameras")
         .toolbar {
@@ -78,7 +78,6 @@ struct ContentView: View {
                 }
             }
         }
-        //.windowToolbarFullScreenVisibility(.onHover)
         .sheet(isPresented: $viewModel.showSettings) {
             CameraSettingsView(viewModel: viewModel)
         }
