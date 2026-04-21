@@ -37,7 +37,7 @@ enum CameraValidationError: LocalizedError {
         case .invalidURL:
             return "Camera address is not valid."
         case .duplicateCamera:
-            return "Camera with same host, channel, and protocol already exists."
+            return "Camera with same connection already exists."
         case .unauthorized:
             return "Camera rejected username or password."
         case .unexpectedStatus(let statusCode):
@@ -176,7 +176,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
     }
 
     var connectionSummary: String {
-        "\(useHTTPS ? "HTTPS" : "HTTP") • Channel \(channel)"
+        useHTTPS ? "HTTPS" : "HTTP"
     }
 
     var formattedSnapshotURL: String {

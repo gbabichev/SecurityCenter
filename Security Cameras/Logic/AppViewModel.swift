@@ -71,10 +71,19 @@ final class AppViewModel: ObservableObject {
         cameras.removeAll { $0.id == camera.id }
     }
 
-    func validateAndAddCamera(from draft: CameraConfig) async throws -> CameraConfig {
-        let camera = draft.sanitized
-        try await validateCamera(camera)
-        cameras.append(camera)
+    func validateAndSaveCamera(from draft: CameraConfig, editing existingID: CameraConfig.ID? = nil) async throws -> CameraConfig {
+        var camera = draft.sanitized
+        if let existingID {
+            camera.id = existingID
+        }
+
+        try await validateCamera(camera, ignoring: existingID)
+
+        if let index = cameras.firstIndex(where: { $0.id == camera.id }) {
+            cameras[index] = camera
+        } else {
+            cameras.append(camera)
+        }
         availability[camera.id] = true
         selectedSidebarItem = .camera(camera.id)
         return camera
@@ -146,7 +155,7 @@ final class AppViewModel: ObservableObject {
         gridAssignments = normalizedGridAssignments(removing: ids)
     }
 
-    private func validateCamera(_ camera: CameraConfig) async throws {
+    private func validateCamera(_ camera: CameraConfig, ignoring ignoredID: CameraConfig.ID?) async throws {
         guard !camera.host.isEmpty else {
             throw CameraValidationError.missingHost
         }
@@ -154,7 +163,9 @@ final class AppViewModel: ObservableObject {
             throw CameraValidationError.invalidURL
         }
         guard !cameras.contains(where: { existing in
-            existing.host.caseInsensitiveCompare(camera.host) == .orderedSame
+            existing.id != ignoredID
+                && existing.id != camera.id
+                && existing.host.caseInsensitiveCompare(camera.host) == .orderedSame
                 && existing.channel == camera.channel
                 && existing.useHTTPS == camera.useHTTPS
         }) else {

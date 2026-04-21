@@ -11,99 +11,135 @@ struct CameraSettingsView: View {
     @ObservedObject var viewModel: AppViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var draft = CameraConfig.emptyDraft
-    @State private var addCameraState: AddCameraState = .idle
+    @State private var selectedCameraID: CameraConfig.ID?
+    @State private var editorState: EditorState = .idle
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                heroCard
+            VStack(alignment: .leading, spacing: 14) {
+                header
 
 #if os(macOS)
-                HStack(alignment: .top, spacing: 20) {
-                    leftColumn
-                        .frame(width: 320)
-                    rightColumn
+                HStack(alignment: .top, spacing: 14) {
+                    camerasCard
+                        .frame(width: 260)
+                    VStack(spacing: 14) {
+                        editorCard
+                        displayCard
+                    }
                 }
 #else
-                VStack(spacing: 20) {
-                    rightColumn
-                    leftColumn
+                VStack(spacing: 14) {
+                    camerasCard
+                    editorCard
+                    displayCard
                 }
 #endif
 
-                actionBar
+                footer
             }
-            .padding(24)
+            .padding(16)
         }
-        .background(backgroundGradient)
         .onChange(of: draft) { _, _ in
-            guard !addCameraState.isValidating else { return }
-            addCameraState = .idle
+            guard !editorState.isValidating else { return }
+            editorState = .idle
+        }
+        .onChange(of: viewModel.cameras) { _, cameras in
+            if let selectedCameraID, !cameras.contains(where: { $0.id == selectedCameraID }) {
+                resetEditor()
+            }
         }
 #if os(macOS)
-        .frame(minWidth: 920, minHeight: 680)
+        .frame(minWidth: 760, minHeight: 540)
 #endif
     }
 
-    private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.07, green: 0.1, blue: 0.16),
-                Color(red: 0.02, green: 0.03, blue: 0.06)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
+    private var header: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Settings")
+                    .font(.title2.weight(.semibold))
+                Text(isEditing ? "Edit selected camera." : "Add camera or pick one to edit.")
+                    .foregroundStyle(.secondary)
+            }
 
-    private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Camera Setup", systemImage: "dot.radiowaves.left.and.right")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(.white)
+            Spacer()
 
-            Text("Add cameras only after live snapshot check passes. Existing cameras stay one tap away.")
-                .foregroundStyle(.white.opacity(0.78))
-
-            HStack(spacing: 10) {
-                infoPill(title: "\(viewModel.cameras.count)", subtitle: "Saved")
-                infoPill(title: "\(viewModel.availability.values.filter { $0 }.count)", subtitle: "Online")
-                infoPill(title: draft.useHTTPS ? "HTTPS" : "HTTP", subtitle: "Protocol")
+            if isEditing {
+                Button("New Camera") {
+                    resetEditor()
+                }
+                .buttonStyle(.bordered)
             }
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(
-                colors: [
-                    Color(red: 0.13, green: 0.54, blue: 0.4),
-                    Color(red: 0.08, green: 0.24, blue: 0.46)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 28, style: .continuous)
-        )
     }
 
-    private var leftColumn: some View {
-        VStack(spacing: 20) {
-            camerasCard
-            displayCard
+    private var camerasCard: some View {
+        settingsCard(title: "Cameras", subtitle: "Click camera to edit.") {
+            VStack(alignment: .leading, spacing: 8) {
+                if viewModel.cameras.isEmpty {
+                    placeholderCard(title: "No cameras yet", message: "Use form to add first camera.")
+                } else {
+                    ForEach(viewModel.cameras) { camera in
+                        Button {
+                            selectedCameraID = camera.id
+                            draft = camera
+                            editorState = .idle
+                        } label: {
+                            HStack(alignment: .top, spacing: 10) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(camera.displayName)
+                                        .font(.headline)
+                                    Text(camera.host)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                    Text(camera.connectionSummary)
+                                        .font(.caption.weight(.medium))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                AvailabilityIndicator(isAvailable: viewModel.availability[camera.id] ?? false)
+                                    .padding(.top, 2)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(selectedCameraID == camera.id ? AnyShapeStyle(.thinMaterial) : AnyShapeStyle(.clear), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button("Edit") {
+                                selectedCameraID = camera.id
+                                draft = camera
+                                editorState = .idle
+                            }
+                            Button("Delete", role: .destructive) {
+                                if selectedCameraID == camera.id {
+                                    resetEditor()
+                                }
+                                viewModel.deleteCamera(camera)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
-    private var rightColumn: some View {
-        settingsCard(title: "Add Camera", subtitle: "Validate stream before save.") {
-            VStack(alignment: .leading, spacing: 18) {
+    private var editorCard: some View {
+        settingsCard(
+            title: isEditing ? "Edit Camera" : "Add Camera",
+            subtitle: isEditing ? "Save updates after live validation." : "Camera is saved only after live validation."
+        ) {
+            VStack(alignment: .leading, spacing: 14) {
                 statusCard
 
-                fieldBlock(title: "Camera Name", caption: "Optional label shown in sidebar and overlays.") {
+                fieldBlock(title: "Name", caption: "Optional label.") {
                     TextField("Front Door", text: $draft.name)
                         .textFieldStyle(.roundedBorder)
                 }
 
-                fieldBlock(title: "Address", caption: "IP address or host name used for snapshot endpoint.") {
+                fieldBlock(title: "Address", caption: "IP or host name.") {
                     TextField("192.168.1.50", text: $draft.host)
 #if os(iOS)
                         .textInputAutocapitalization(.never)
@@ -115,89 +151,41 @@ struct CameraSettingsView: View {
 
                 credentialsSection
 
-                channelProtocolSection
+                protocolField
 
-                fieldBlock(title: "Snapshot URL", caption: "Generated from form values.") {
-                    Text(draft.sanitized.formattedSnapshotURL)
-                        .font(.footnote.monospaced())
-                        .foregroundStyle(.white.opacity(0.82))
-                        .textSelection(.enabled)
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                }
-
-                Button(action: validateAndAddCamera) {
-                    HStack {
-                        if addCameraState.isValidating {
-                            ProgressView()
-                                .tint(.black)
-                        } else {
-                            Image(systemName: "plus.circle.fill")
+                HStack(spacing: 10) {
+                    if isEditing {
+                        Button("Cancel") {
+                            resetEditor()
                         }
-                        Text(addCameraState.isValidating ? "Validating…" : "Add Camera")
-                            .fontWeight(.semibold)
+                        .buttonStyle(.bordered)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.black)
-                .background(Color(red: 0.55, green: 0.92, blue: 0.76), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .disabled(isAddDisabled)
-                .opacity(isAddDisabled ? 0.55 : 1)
-            }
-        }
-    }
 
-    private var camerasCard: some View {
-        settingsCard(title: "Saved Cameras", subtitle: "Quick access to configured feeds.") {
-            VStack(alignment: .leading, spacing: 12) {
-                if viewModel.cameras.isEmpty {
-                    placeholderCard(
-                        title: "No cameras yet",
-                        message: "Run validation once. Passing camera appears here and in sidebar."
-                    )
-                } else {
-                    ForEach(viewModel.cameras) { camera in
-                        HStack(alignment: .top, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(camera.displayName)
-                                    .font(.headline)
-                                    .foregroundStyle(.white)
-                                Text(camera.host)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white.opacity(0.72))
-                                Text(camera.connectionSummary)
-                                    .font(.caption.weight(.medium))
-                                    .foregroundStyle(.mint)
+                    Button(action: saveCamera) {
+                        HStack {
+                            if editorState.isValidating {
+                                ProgressView()
+                            } else {
+                                Image(systemName: isEditing ? "square.and.arrow.down.fill" : "plus.circle.fill")
                             }
-                            Spacer()
-                            Button(role: .destructive) {
-                                viewModel.deleteCamera(camera)
-                            } label: {
-                                Image(systemName: "trash")
-                                    .padding(10)
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.white.opacity(0.82))
-                            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            Text(editorState.isValidating ? "Validating…" : (isEditing ? "Save Changes" : "Add Camera"))
+                                .fontWeight(.semibold)
                         }
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isPrimaryActionDisabled)
+                    .opacity(isPrimaryActionDisabled ? 0.55 : 1)
                 }
             }
         }
     }
 
     private var displayCard: some View {
-        settingsCard(title: "Display", subtitle: "Overlay preferences for detail and grid views.") {
-            VStack(alignment: .leading, spacing: 16) {
+        settingsCard(title: "Display", subtitle: "Overlay preferences.") {
+            VStack(alignment: .leading, spacing: 12) {
                 Toggle("Show camera name in display", isOn: $viewModel.showCameraNameInDisplay)
-                    .tint(.mint)
-                    .foregroundStyle(.white)
 
                 Picker("Camera name location", selection: $viewModel.cameraNameLocation) {
                     ForEach(CameraNameLocation.allCases) { location in
@@ -211,63 +199,44 @@ struct CameraSettingsView: View {
     }
 
     private var statusCard: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: addCameraState.symbolName)
-                .font(.title3)
-                .foregroundStyle(addCameraState.tint)
-                .frame(width: 24)
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: editorState.symbolName)
+                .font(.body)
+                .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(addCameraState.title)
+                Text(editorState.title)
                     .font(.headline)
-                    .foregroundStyle(.white)
-                Text(addCameraState.message)
-                    .foregroundStyle(.white.opacity(0.78))
+                Text(editorState.message(isEditing: isEditing))
+                    .foregroundStyle(.secondary)
             }
         }
-        .padding(16)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(addCameraState.backgroundColor, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    private var actionBar: some View {
+    private var footer: some View {
         HStack {
             Spacer()
             Button("Done") {
                 dismiss()
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.white.opacity(0.16))
+            .buttonStyle(.bordered)
         }
     }
 
     @ViewBuilder
     private var credentialsSection: some View {
 #if os(macOS)
-        HStack(alignment: .top, spacing: 16) {
+        HStack(alignment: .top, spacing: 12) {
             usernameField
             passwordField
         }
 #else
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             usernameField
             passwordField
-        }
-#endif
-    }
-
-    @ViewBuilder
-    private var channelProtocolSection: some View {
-#if os(macOS)
-        HStack(alignment: .center, spacing: 16) {
-            channelField
-            Spacer(minLength: 0)
-            protocolField
-        }
-#else
-        VStack(alignment: .leading, spacing: 16) {
-            channelField
-            protocolField
         }
 #endif
     }
@@ -290,118 +259,105 @@ struct CameraSettingsView: View {
         }
     }
 
-    private var channelField: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Channel")
-                .font(.headline)
-                .foregroundStyle(.white)
-            Stepper("Channel \(draft.channel)", value: $draft.channel, in: 0...15)
-                .tint(.mint)
-        }
-    }
-
     private var protocolField: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        HStack(spacing: 12) {
             Text("Protocol")
                 .font(.headline)
-                .foregroundStyle(.white)
-            Toggle(isOn: $draft.useHTTPS) {
-                Text(draft.useHTTPS ? "Use HTTPS" : "Use HTTP")
-                    .foregroundStyle(.white.opacity(0.85))
-            }
-            .toggleStyle(.switch)
+            Spacer(minLength: 0)
+            Toggle(draft.useHTTPS ? "HTTPS" : "HTTP", isOn: $draft.useHTTPS)
+                .toggleStyle(.switch)
+                .labelsHidden()
+            Text(draft.useHTTPS ? "HTTPS" : "HTTP")
+                .foregroundStyle(.secondary)
         }
     }
 
-    private var isAddDisabled: Bool {
-        draft.host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || addCameraState.isValidating
+    private var isEditing: Bool {
+        selectedCameraID != nil
     }
 
-    private func infoPill(title: String, subtitle: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.headline.weight(.semibold))
-            Text(subtitle)
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.72))
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(.white.opacity(0.14), in: Capsule())
+    private var isPrimaryActionDisabled: Bool {
+        draft.host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || editorState.isValidating
     }
 
     private func settingsCard<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .font(.headline.weight(.semibold))
                 Text(subtitle)
-                    .foregroundStyle(.white.opacity(0.68))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
             content()
         }
-        .padding(22)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08))
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(.quaternary, lineWidth: 1)
         )
     }
 
     private func placeholderCard(title: String, message: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.headline)
-                .foregroundStyle(.white)
             Text(message)
-                .foregroundStyle(.white.opacity(0.72))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
-        .padding(16)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [6, 6]))
-                .foregroundStyle(Color.white.opacity(0.12))
+                .foregroundStyle(.quaternary)
         )
     }
 
     private func fieldBlock<Content: View>(title: String, caption: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.headline)
-                .foregroundStyle(.white)
             Text(caption)
                 .font(.footnote)
-                .foregroundStyle(.white.opacity(0.62))
+                .foregroundStyle(.secondary)
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func validateAndAddCamera() {
+    private func saveCamera() {
         let candidate = draft
-        addCameraState = .validating
+        let editingID = selectedCameraID
+        editorState = .validating
 
         Task {
             do {
-                let camera = try await viewModel.validateAndAddCamera(from: candidate)
-                draft = .emptyDraft
-                addCameraState = .success("\(camera.displayName) responded with snapshot image. Camera added.")
+                let camera = try await viewModel.validateAndSaveCamera(from: candidate, editing: editingID)
+                selectedCameraID = camera.id
+                draft = camera
+                editorState = .success(editingID == nil ? "\(camera.displayName) added." : "\(camera.displayName) updated.")
             } catch let error as CameraValidationError {
-                addCameraState = .failure(error.localizedDescription)
+                editorState = .failure(error.localizedDescription)
             } catch {
-                addCameraState = .failure(error.localizedDescription)
+                editorState = .failure(error.localizedDescription)
             }
         }
     }
+
+    private func resetEditor() {
+        selectedCameraID = nil
+        draft = .emptyDraft
+        editorState = .idle
+    }
 }
 
-private enum AddCameraState {
+private enum EditorState {
     case idle
     case validating
     case success(String)
@@ -417,22 +373,22 @@ private enum AddCameraState {
     var title: String {
         switch self {
         case .idle:
-            return "Ready to validate"
+            return "Ready"
         case .validating:
             return "Checking camera"
         case .success:
-            return "Camera confirmed"
+            return "Saved"
         case .failure:
             return "Could not connect"
         }
     }
 
-    var message: String {
+    func message(isEditing: Bool) -> String {
         switch self {
         case .idle:
-            return "Add Camera runs live snapshot check first. Only working feeds get saved."
+            return isEditing ? "Save changes after validation passes." : "Add camera after validation passes."
         case .validating:
-            return "Connecting to snapshot endpoint now. This usually takes a few seconds."
+            return "Connecting to snapshot endpoint."
         case .success(let message), .failure(let message):
             return message
         }
@@ -441,7 +397,7 @@ private enum AddCameraState {
     var symbolName: String {
         switch self {
         case .idle:
-            return "bolt.badge.shield"
+            return "slider.horizontal.3"
         case .validating:
             return "dot.radiowaves.left.and.right"
         case .success:
@@ -451,29 +407,4 @@ private enum AddCameraState {
         }
     }
 
-    var tint: Color {
-        switch self {
-        case .idle:
-            return .cyan
-        case .validating:
-            return .mint
-        case .success:
-            return .green
-        case .failure:
-            return .orange
-        }
-    }
-
-    var backgroundColor: Color {
-        switch self {
-        case .idle:
-            return .white.opacity(0.05)
-        case .validating:
-            return Color(red: 0.07, green: 0.28, blue: 0.27)
-        case .success:
-            return Color(red: 0.08, green: 0.3, blue: 0.16)
-        case .failure:
-            return Color(red: 0.34, green: 0.17, blue: 0.09)
-        }
-    }
 }
