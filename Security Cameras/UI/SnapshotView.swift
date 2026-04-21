@@ -50,7 +50,7 @@ struct SnapshotView: View {
             return
         }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await CameraNetworkSession.shared.data(from: url)
             guard let http = response as? HTTPURLResponse,
                   (200...299).contains(http.statusCode) else {
                 markSnapshotFailure()

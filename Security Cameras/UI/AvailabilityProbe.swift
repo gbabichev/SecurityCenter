@@ -32,7 +32,7 @@ struct AvailabilityProbe: View {
     private func checkAvailability() async -> Bool {
         guard let url else { return false }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await CameraNetworkSession.shared.data(from: url)
             guard let http = response as? HTTPURLResponse,
                   (200...299).contains(http.statusCode) else {
                 return false

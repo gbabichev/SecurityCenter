@@ -178,7 +178,7 @@ final class AppViewModel: ObservableObject {
         request.setValue("image/*", forHTTPHeaderField: "Accept")
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await CameraNetworkSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse else {
                 throw CameraValidationError.invalidResponse
             }
