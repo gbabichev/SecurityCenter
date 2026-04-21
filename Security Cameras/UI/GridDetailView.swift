@@ -14,8 +14,8 @@ struct GridDetailView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let spacing = 12.0
-            let padding = 16.0
+            let spacing = 0.0
+            let padding = 0.0
             let cellWidth = max(
                 0,
                 (proxy.size.width - (padding * 2) - (spacing * Double(option.columns - 1))) / Double(option.columns)
@@ -81,7 +81,6 @@ struct GridDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {
             guard camera != nil else { return }

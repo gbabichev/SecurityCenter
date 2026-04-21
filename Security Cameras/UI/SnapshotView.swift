@@ -26,7 +26,6 @@ struct SnapshotView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .task(id: url) {
             image = nil
             onStatusChange(.loading)
