@@ -28,7 +28,7 @@ struct CameraDetailView: View {
                             .ignoresSafeArea()
 
                         ZStack(alignment: overlayAlignment) {
-                            SnapshotView(url: camera.snapshotURL, contentMode: .fit) { status in
+                            SnapshotView(url: camera.snapshotURL, scalingMode: .fit) { status in
                                 snapshotStatus = status
                             }
 

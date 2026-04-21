@@ -52,7 +52,7 @@ struct GridDetailView: View {
         let camera = viewModel.cameras.first { $0.id == cameraID }
         ZStack {
             if let camera {
-                SnapshotView(url: camera.snapshotURL, contentMode: .fit) { _ in }
+                SnapshotView(url: camera.snapshotURL, scalingMode: .stretch) { _ in }
             } else {
                 Rectangle()
                     .fill(.black)

@@ -7,9 +7,15 @@
 
 import SwiftUI
 
+enum SnapshotScalingMode {
+    case fit
+    case fill
+    case stretch
+}
+
 struct SnapshotView: View {
     let url: URL?
-    var contentMode: ContentMode = .fit
+    var scalingMode: SnapshotScalingMode = .fit
     @State private var image: PlatformImage?
     let onStatusChange: (SnapshotStatus) -> Void
 
@@ -97,7 +103,7 @@ struct SnapshotView: View {
 #else
         let content = Image(nsImage: image).resizable()
 #endif
-        switch contentMode {
+        switch scalingMode {
         case .fill:
             content
                 .scaledToFill()
@@ -105,9 +111,8 @@ struct SnapshotView: View {
         case .fit:
             content
                 .scaledToFit()
-        @unknown default:
+        case .stretch:
             content
-                .scaledToFit()
         }
     }
 }
