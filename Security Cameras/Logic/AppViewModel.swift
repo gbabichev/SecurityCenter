@@ -10,11 +10,15 @@ import Combine
 
 @MainActor
 final class AppViewModel: ObservableObject {
-    @AppStorage("camerasJSON") private var camerasJSON: String = "[]"
-    @AppStorage("gridAssignmentsJSON") private var gridAssignmentsJSON: String = "{}"
-    @AppStorage("gridPictureStyle") private var gridPictureStyleRaw = GridPictureStyle.fillEachBox.rawValue
-    @AppStorage("selectedSidebarItem") private var selectedSidebarItemRaw: String = ""
+    private let defaults = UserDefaults.standard
     private var isLoading = true
+
+    private enum StorageKey {
+        static let camerasJSON = "camerasJSON"
+        static let gridAssignmentsJSON = "gridAssignmentsJSON"
+        static let gridPictureStyle = "gridPictureStyle"
+        static let selectedSidebarItem = "selectedSidebarItem"
+    }
 
     @Published var cameras: [CameraConfig] = [] {
         didSet {
@@ -29,7 +33,7 @@ final class AppViewModel: ObservableObject {
     }
     @Published var gridPictureStyle: GridPictureStyle = .fillEachBox {
         didSet {
-            gridPictureStyleRaw = gridPictureStyle.rawValue
+            defaults.set(gridPictureStyle.rawValue, forKey: StorageKey.gridPictureStyle)
         }
     }
     @Published var showSettings = false
@@ -43,7 +47,9 @@ final class AppViewModel: ObservableObject {
     init() {
         loadGridAssignments()
         loadCameras()
-        gridPictureStyle = GridPictureStyle(rawValue: gridPictureStyleRaw) ?? .fillEachBox
+        gridPictureStyle = GridPictureStyle(
+            rawValue: defaults.string(forKey: StorageKey.gridPictureStyle) ?? GridPictureStyle.fillEachBox.rawValue
+        ) ?? .fillEachBox
         restoreSelectedSidebarItem()
         isLoading = false
     }
@@ -128,7 +134,8 @@ final class AppViewModel: ObservableObject {
     }
 
     private func loadCameras() {
-        guard let data = camerasJSON.data(using: .utf8),
+        let rawValue = defaults.string(forKey: StorageKey.camerasJSON) ?? "[]"
+        guard let data = rawValue.data(using: .utf8),
               let decoded = try? JSONDecoder().decode([CameraConfig].self, from: data) else {
             return
         }
@@ -136,7 +143,8 @@ final class AppViewModel: ObservableObject {
     }
 
     private func loadGridAssignments() {
-        guard let data = gridAssignmentsJSON.data(using: .utf8),
+        let rawValue = defaults.string(forKey: StorageKey.gridAssignmentsJSON) ?? "{}"
+        guard let data = rawValue.data(using: .utf8),
               let decoded = try? JSONDecoder().decode(GridAssignmentsPayload.self, from: data) else {
             gridAssignments = [:]
             return
@@ -156,7 +164,7 @@ final class AppViewModel: ObservableObject {
               let json = String(data: data, encoding: .utf8) else {
             return
         }
-        camerasJSON = json
+        defaults.set(json, forKey: StorageKey.camerasJSON)
     }
 
     private func persistGridAssignments() {
@@ -170,16 +178,17 @@ final class AppViewModel: ObservableObject {
               let json = String(data: data, encoding: .utf8) else {
             return
         }
-        gridAssignmentsJSON = json
+        defaults.set(json, forKey: StorageKey.gridAssignmentsJSON)
     }
 
     private func persistSelectedSidebarItem() {
         guard !isLoading else { return }
-        selectedSidebarItemRaw = encodedSidebarItem(selectedSidebarItem)
+        defaults.set(encodedSidebarItem(selectedSidebarItem), forKey: StorageKey.selectedSidebarItem)
     }
 
     private func restoreSelectedSidebarItem() {
-        selectedSidebarItem = normalizedSidebarItem(decodedSidebarItem(selectedSidebarItemRaw))
+        let rawValue = defaults.string(forKey: StorageKey.selectedSidebarItem) ?? ""
+        selectedSidebarItem = normalizedSidebarItem(decodedSidebarItem(rawValue))
     }
 
     private func reconcileSelectionAndAvailability() {
