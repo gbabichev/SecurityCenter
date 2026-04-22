@@ -15,6 +15,7 @@ final class AppViewModel: ObservableObject {
 
     private enum StorageKey {
         static let camerasJSON = "camerasJSON"
+        static let gridsJSON = "gridsJSON"
         static let gridAssignmentsJSON = "gridAssignmentsJSON"
         static let gridPictureStyle = "gridPictureStyle"
         static let selectedSidebarItem = "selectedSidebarItem"
@@ -26,7 +27,13 @@ final class AppViewModel: ObservableObject {
             reconcileSelectionAndAvailability()
         }
     }
-    @Published var gridAssignments: [GridOption: [CameraConfig.ID?]] = [:] {
+    @Published var grids: [GridLayout] = [] {
+        didSet {
+            persistGrids()
+            reconcileSelectionAndAvailability()
+        }
+    }
+    @Published var gridAssignments: [GridLayout.ID: [CameraConfig.ID?]] = [:] {
         didSet {
             persistGridAssignments()
         }
@@ -45,6 +52,7 @@ final class AppViewModel: ObservableObject {
     @Published var availability: [CameraConfig.ID: Bool] = [:]
 
     init() {
+        loadGrids()
         loadGridAssignments()
         loadCameras()
         gridPictureStyle = GridPictureStyle(
@@ -59,9 +67,9 @@ final class AppViewModel: ObservableObject {
         return cameras.first { $0.id == cameraID }
     }
 
-    var selectedGridOption: GridOption? {
-        guard case let .grid(option) = selectedSidebarItem else { return nil }
-        return option
+    var selectedGrid: GridLayout? {
+        guard case let .grid(gridID) = selectedSidebarItem else { return nil }
+        return grids.first { $0.id == gridID }
     }
 
     func updateAvailability(for cameraID: CameraConfig.ID, isAvailable: Bool) {
@@ -76,12 +84,25 @@ final class AppViewModel: ObservableObject {
         cameras.removeAll { $0.id == camera.id }
     }
 
+    func addGrid(name: String = "", columns: Int, rows: Int) -> GridLayout {
+        let grid = GridLayout(name: name, columns: columns, rows: rows)
+        grids.append(grid)
+        selectedSidebarItem = .grid(grid.id)
+        return grid
+    }
+
+    func deleteGrid(_ grid: GridLayout) {
+        guard grids.count > 1 else { return }
+        grids.removeAll { $0.id == grid.id }
+    }
+
     func exportConfigurationData() throws -> Data {
         let payload = AppConfigurationPayload(
-            version: 1,
+            version: 2,
             cameras: cameras,
+            grids: grids,
             gridAssignments: gridAssignments.reduce(into: [:]) { result, item in
-                result[item.key.rawValue] = item.value
+                result[item.key.uuidString] = item.value
             },
             gridPictureStyle: gridPictureStyle
         )
@@ -93,13 +114,11 @@ final class AppViewModel: ObservableObject {
     func importConfigurationData(_ data: Data) throws {
         let decoder = JSONDecoder()
         let payload = try decoder.decode(AppConfigurationPayload.self, from: data)
+        let importedGridState = importedGridState(from: payload)
 
         cameras = payload.cameras
-        gridAssignments = payload.gridAssignments.reduce(into: [:]) { result, item in
-            if let option = GridOption(rawValue: item.key) {
-                result[option] = item.value
-            }
-        }
+        grids = importedGridState.grids
+        gridAssignments = importedGridState.assignments
         gridPictureStyle = payload.gridPictureStyle
         availability = [:]
         restoreSelectedSidebarItem()
@@ -122,15 +141,15 @@ final class AppViewModel: ObservableObject {
         return camera
     }
 
-    func gridCameraID(option: GridOption, index: Int) -> CameraConfig.ID? {
-        normalizedGridAssignments(option: option)[safe: index] ?? nil
+    func gridCameraID(layout: GridLayout, index: Int) -> CameraConfig.ID? {
+        normalizedGridAssignments(layout: layout)[safe: index] ?? nil
     }
 
-    func setGridCameraID(option: GridOption, index: Int, cameraID: CameraConfig.ID?) {
-        var assignments = normalizedGridAssignments(option: option)
+    func setGridCameraID(layout: GridLayout, index: Int, cameraID: CameraConfig.ID?) {
+        var assignments = normalizedGridAssignments(layout: layout)
         guard assignments.indices.contains(index) else { return }
         assignments[index] = cameraID
-        gridAssignments[option] = assignments
+        gridAssignments[layout.id] = assignments
     }
 
     private func loadCameras() {
@@ -142,20 +161,42 @@ final class AppViewModel: ObservableObject {
         cameras = decoded
     }
 
+    private func loadGrids() {
+        let rawValue = defaults.string(forKey: StorageKey.gridsJSON) ?? ""
+        guard !rawValue.isEmpty,
+              let data = rawValue.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode([GridLayout].self, from: data),
+              !decoded.isEmpty else {
+            grids = [.defaultGrid]
+            return
+        }
+        grids = decoded
+    }
+
     private func loadGridAssignments() {
         let rawValue = defaults.string(forKey: StorageKey.gridAssignmentsJSON) ?? "{}"
-        guard let data = rawValue.data(using: .utf8),
-              let decoded = try? JSONDecoder().decode(GridAssignmentsPayload.self, from: data) else {
+        guard let data = rawValue.data(using: .utf8) else {
             gridAssignments = [:]
             return
         }
-        var assignments: [GridOption: [CameraConfig.ID?]] = [:]
-        for (key, value) in decoded.assignments {
-            if let option = GridOption(rawValue: key) {
-                assignments[option] = value
+
+        if let decoded = try? JSONDecoder().decode(GridAssignmentsPayload.self, from: data) {
+            var assignments: [GridLayout.ID: [CameraConfig.ID?]] = [:]
+            for (key, value) in decoded.assignments {
+                if let gridID = UUID(uuidString: key) {
+                    assignments[gridID] = value
+                }
             }
+            gridAssignments = assignments
+            return
         }
-        gridAssignments = assignments
+
+        if let decoded = try? JSONDecoder().decode(LegacyGridAssignmentsPayload.self, from: data) {
+            migrateLegacyGridAssignments(decoded.assignments)
+            return
+        }
+
+        gridAssignments = [:]
     }
 
     private func persistCameras() {
@@ -167,11 +208,20 @@ final class AppViewModel: ObservableObject {
         defaults.set(json, forKey: StorageKey.camerasJSON)
     }
 
+    private func persistGrids() {
+        guard !isLoading else { return }
+        guard let data = try? JSONEncoder().encode(grids),
+              let json = String(data: data, encoding: .utf8) else {
+            return
+        }
+        defaults.set(json, forKey: StorageKey.gridsJSON)
+    }
+
     private func persistGridAssignments() {
         guard !isLoading else { return }
         var rawAssignments: [String: [CameraConfig.ID?]] = [:]
-        for (option, value) in gridAssignments {
-            rawAssignments[option.rawValue] = value
+        for (gridID, value) in gridAssignments {
+            rawAssignments[gridID.uuidString] = value
         }
         let payload = GridAssignmentsPayload(assignments: rawAssignments)
         guard let data = try? JSONEncoder().encode(payload),
@@ -203,8 +253,8 @@ final class AppViewModel: ObservableObject {
         switch item {
         case .camera(let cameraID):
             return cameras.contains(where: { $0.id == cameraID }) ? item : nil
-        case .grid(let option):
-            return GridOption.allCases.contains(option) ? item : nil
+        case .grid(let gridID):
+            return grids.contains(where: { $0.id == gridID }) ? item : nil
         }
     }
 
@@ -213,8 +263,8 @@ final class AppViewModel: ObservableObject {
         switch item {
         case .camera(let cameraID):
             return "camera:\(cameraID.uuidString)"
-        case .grid(let option):
-            return "grid:\(option.rawValue)"
+        case .grid(let gridID):
+            return "grid:\(gridID.uuidString)"
         }
     }
 
@@ -228,11 +278,57 @@ final class AppViewModel: ObservableObject {
             guard let cameraID = UUID(uuidString: parts[1]) else { return nil }
             return .camera(cameraID)
         case "grid":
-            guard let option = GridOption(rawValue: parts[1]) else { return nil }
-            return .grid(option)
+            guard let gridID = UUID(uuidString: parts[1]) else { return nil }
+            return .grid(gridID)
         default:
             return nil
         }
+    }
+
+    private func importedGridState(from payload: AppConfigurationPayload) -> (grids: [GridLayout], assignments: [GridLayout.ID: [CameraConfig.ID?]]) {
+        if let grids = payload.grids, !grids.isEmpty {
+            let assignments = payload.gridAssignments.reduce(into: [GridLayout.ID: [CameraConfig.ID?]]()) { result, item in
+                if let gridID = UUID(uuidString: item.key) {
+                    result[gridID] = item.value
+                }
+            }
+            return (grids, assignments)
+        }
+
+        var migratedGrids: [GridLayout] = []
+        var migratedAssignments: [GridLayout.ID: [CameraConfig.ID?]] = [:]
+        for option in LegacyGridOption.allCases {
+            guard let assignments = payload.gridAssignments[option.rawValue] else { continue }
+            let grid = option.layout
+            migratedGrids.append(grid)
+            migratedAssignments[grid.id] = assignments
+        }
+
+        if !migratedGrids.isEmpty {
+            return (migratedGrids, migratedAssignments)
+        }
+
+        return ([.defaultGrid], [:])
+    }
+
+    private func migrateLegacyGridAssignments(_ legacyAssignments: [String: [CameraConfig.ID?]]) {
+        guard defaults.string(forKey: StorageKey.gridsJSON) == nil else {
+            gridAssignments = [:]
+            return
+        }
+
+        var migratedGrids: [GridLayout] = []
+        var migratedAssignments: [GridLayout.ID: [CameraConfig.ID?]] = [:]
+
+        for option in LegacyGridOption.allCases {
+            guard let assignments = legacyAssignments[option.rawValue] else { continue }
+            let grid = option.layout
+            migratedGrids.append(grid)
+            migratedAssignments[grid.id] = assignments
+        }
+
+        grids = migratedGrids.isEmpty ? [.defaultGrid] : migratedGrids
+        gridAssignments = migratedAssignments
     }
 
     private func validateCamera(_ camera: CameraConfig, ignoring ignoredID: CameraConfig.ID?) async throws {
@@ -309,9 +405,9 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    private func normalizedGridAssignments(option: GridOption) -> [CameraConfig.ID?] {
-        var current = gridAssignments[option] ?? []
-        let targetCount = option.maxItems
+    private func normalizedGridAssignments(layout: GridLayout) -> [CameraConfig.ID?] {
+        var current = gridAssignments[layout.id] ?? []
+        let targetCount = layout.maxItems
         if current.count < targetCount {
             current.append(contentsOf: Array(repeating: nil, count: targetCount - current.count))
         } else if current.count > targetCount {
@@ -320,16 +416,16 @@ final class AppViewModel: ObservableObject {
         return current
     }
 
-    private func normalizedGridAssignments(removing validIDs: Set<CameraConfig.ID>) -> [GridOption: [CameraConfig.ID?]] {
-        var normalized: [GridOption: [CameraConfig.ID?]] = [:]
-        for option in GridOption.allCases {
-            var assignments = normalizedGridAssignments(option: option)
+    private func normalizedGridAssignments(removing validIDs: Set<CameraConfig.ID>) -> [GridLayout.ID: [CameraConfig.ID?]] {
+        var normalized: [GridLayout.ID: [CameraConfig.ID?]] = [:]
+        for layout in grids {
+            var assignments = normalizedGridAssignments(layout: layout)
             for index in assignments.indices {
                 if let id = assignments[index], !validIDs.contains(id) {
                     assignments[index] = nil
                 }
             }
-            normalized[option] = assignments
+            normalized[layout.id] = assignments
         }
         return normalized
     }
@@ -342,8 +438,30 @@ private struct GridAssignmentsPayload: Codable {
 private struct AppConfigurationPayload: Codable {
     let version: Int
     let cameras: [CameraConfig]
+    let grids: [GridLayout]?
     let gridAssignments: [String: [CameraConfig.ID?]]
     let gridPictureStyle: GridPictureStyle
+}
+
+private struct LegacyGridAssignmentsPayload: Codable {
+    let assignments: [String: [CameraConfig.ID?]]
+}
+
+private enum LegacyGridOption: String, CaseIterable {
+    case grid2x2
+    case grid2x4
+    case grid4x4
+
+    var layout: GridLayout {
+        switch self {
+        case .grid2x2:
+            return GridLayout(name: "2x2", columns: 2, rows: 2)
+        case .grid2x4:
+            return GridLayout(name: "2x4", columns: 2, rows: 4)
+        case .grid4x4:
+            return GridLayout(name: "4x4", columns: 4, rows: 4)
+        }
+    }
 }
 
 private extension Array {

@@ -135,48 +135,30 @@ enum CameraNameLocation: String, CaseIterable, Identifiable, Hashable, Codable {
     }
 }
 
-enum GridOption: String, CaseIterable, Identifiable, Hashable, Codable {
-    case grid2x2
-    case grid2x4
-    case grid4x4
+struct GridLayout: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var name: String = ""
+    var columns: Int
+    var rows: Int
 
-    var id: String { rawValue }
+    init(id: UUID = UUID(), name: String = "", columns: Int, rows: Int) {
+        self.id = id
+        self.name = name
+        self.columns = max(columns, 1)
+        self.rows = max(rows, 1)
+    }
 
     var title: String {
-        switch self {
-        case .grid2x2:
-            return "2x2"
-        case .grid2x4:
-            return "2x4"
-        case .grid4x4:
-            return "4x4"
-        }
-    }
-
-    var columns: Int {
-        switch self {
-        case .grid2x2:
-            return 2
-        case .grid2x4:
-            return 2
-        case .grid4x4:
-            return 4
-        }
-    }
-
-    var rows: Int {
-        switch self {
-        case .grid2x2:
-            return 2
-        case .grid2x4:
-            return 4
-        case .grid4x4:
-            return 4
-        }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedName.isEmpty ? "\(columns)x\(rows)" : trimmedName
     }
 
     var maxItems: Int {
         columns * rows
+    }
+
+    static var defaultGrid: GridLayout {
+        GridLayout(name: "2x2", columns: 2, rows: 2)
     }
 }
 
@@ -207,7 +189,7 @@ enum GridPictureStyle: String, CaseIterable, Identifiable, Hashable, Codable {
 
 enum SidebarItem: Hashable {
     case camera(CameraConfig.ID)
-    case grid(GridOption)
+    case grid(GridLayout.ID)
 }
 
 struct CameraConfig: Identifiable, Codable, Hashable {
