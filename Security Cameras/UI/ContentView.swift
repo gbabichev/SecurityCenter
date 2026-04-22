@@ -25,61 +25,7 @@ struct ContentView: View {
 
     private var content: some View {
         NavigationSplitView {
-            List(selection: $viewModel.selectedSidebarItem) {
-                Section("Cameras") {
-                    if viewModel.cameras.isEmpty {
-                        Text("No Cameras")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(viewModel.cameras) { camera in
-                            HStack {
-                                Text(camera.displayName)
-                                    .foregroundStyle(camera.isEnabled ? .primary : .secondary)
-                                Spacer()
-                                if camera.isEnabled {
-                                    AvailabilityIndicator(isAvailable: viewModel.availability[camera.id] ?? false)
-                                } else {
-                                    Image(systemName: "pause.circle")
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .opacity(camera.isEnabled ? 1 : 0.55)
-                            .contentShape(Rectangle())
-                            .tag(SidebarItem.camera(camera.id))
-                            .background(
-                                AvailabilityProbe(camera: camera) { isAvailable in
-                                    viewModel.updateAvailability(for: camera.id, isAvailable: isAvailable)
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Section {
-                    ForEach(viewModel.grids) { grid in
-                        Text(grid.title)
-                            .tag(SidebarItem.grid(grid.id))
-                            .contextMenu {
-                                Button("Delete Grid", role: .destructive) {
-                                    viewModel.deleteGrid(grid)
-                                }
-                                .disabled(viewModel.grids.count <= 1)
-                            }
-                    }
-                } header: {
-                    HStack {
-                        Text("Grids")
-                        Spacer()
-                        Button {
-                            startNewGrid()
-                        } label: {
-                            Image(systemName: "plus")
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.trailing, 8)
-                    }
-                }
-            }
+            sidebar
         } detail: {
             NavigationStack {
                 if let selectedCamera = viewModel.selectedCamera {
@@ -96,6 +42,71 @@ struct ContentView: View {
             }
         }
         .navigationTitle("Security Cameras")
+        .sheet(isPresented: $viewModel.showSettings) {
+            CameraSettingsView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showingNewGridSheet) {
+            newGridSheet
+        }
+    }
+
+    private var sidebar: some View {
+        List(selection: $viewModel.selectedSidebarItem) {
+            Section("Cameras") {
+                if viewModel.cameras.isEmpty {
+                    Text("No Cameras")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(viewModel.cameras) { camera in
+                        HStack {
+                            Text(camera.displayName)
+                                .foregroundStyle(camera.isEnabled ? .primary : .secondary)
+                            Spacer()
+                            if camera.isEnabled {
+                                AvailabilityIndicator(isAvailable: viewModel.availability[camera.id] ?? false)
+                            } else {
+                                Image(systemName: "pause.circle")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .opacity(camera.isEnabled ? 1 : 0.55)
+                        .contentShape(Rectangle())
+                        .tag(SidebarItem.camera(camera.id))
+                        .background(
+                            AvailabilityProbe(camera: camera) { isAvailable in
+                                viewModel.updateAvailability(for: camera.id, isAvailable: isAvailable)
+                            }
+                        )
+                    }
+                }
+            }
+
+            Section {
+                ForEach(viewModel.grids) { grid in
+                    Text(grid.title)
+                        .tag(SidebarItem.grid(grid.id))
+                        .contextMenu {
+                            Button("Delete Grid", role: .destructive) {
+                                viewModel.deleteGrid(grid)
+                            }
+                            .disabled(viewModel.grids.count <= 1)
+                        }
+                }
+            } header: {
+                HStack {
+                    Text("Grids")
+                    Spacer()
+                    Button {
+                        startNewGrid()
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 8)
+                }
+            }
+        }
+        .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 300)
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button {
@@ -104,12 +115,6 @@ struct ContentView: View {
                     Label("Settings", systemImage: "gearshape")
                 }
             }
-        }
-        .sheet(isPresented: $viewModel.showSettings) {
-            CameraSettingsView(viewModel: viewModel)
-        }
-        .sheet(isPresented: $showingNewGridSheet) {
-            newGridSheet
         }
     }
 

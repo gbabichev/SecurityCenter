@@ -14,12 +14,20 @@ import AppKit
 #endif
 
 struct CameraSettingsView: View {
+    private enum PendingLeaveAction {
+        case selectCamera(CameraConfig)
+        case resetEditor
+        case dismissSheet
+    }
+
     @ObservedObject var viewModel: AppViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var draft = CameraConfig.emptyDraft
     @State private var selectedCameraID: CameraConfig.ID?
     @State private var editorState: EditorState = .idle
     @State private var isPasswordVisible = false
+    @State private var pendingLeaveAction: PendingLeaveAction?
+    @State private var showingUnsavedChangesAlert = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -33,6 +41,8 @@ struct CameraSettingsView: View {
                 }
                 .padding(.top, 4)
             }
+
+            cameraActionBar
 
             footer
         }
@@ -51,6 +61,17 @@ struct CameraSettingsView: View {
                 resetEditor()
             }
         }
+        .alert("Unsaved Changes", isPresented: $showingUnsavedChangesAlert) {
+            Button("Keep Editing", role: .cancel) {
+                pendingLeaveAction = nil
+            }
+            Button("Discard Changes", role: .destructive) {
+                performPendingLeaveAction()
+            }
+        } message: {
+            Text("You have unsaved changes for this camera. Discard them and continue?")
+        }
+        .interactiveDismissDisabled(hasUnsavedCameraChanges)
 #if os(macOS)
         .frame(minWidth: 850, minHeight: 620)
 #endif
@@ -147,7 +168,7 @@ struct CameraSettingsView: View {
 
             if isEditing {
                 Button("New Camera") {
-                    resetEditor()
+                    attemptToLeaveEditor(.resetEditor)
                 }
                 .buttonStyle(.bordered)
             }
@@ -162,9 +183,7 @@ struct CameraSettingsView: View {
                 } else {
                     ForEach(Array(viewModel.cameras.enumerated()), id: \.element.id) { index, camera in
                         Button {
-                            selectedCameraID = camera.id
-                            draft = camera
-                            editorState = .idle
+                            attemptToLeaveEditor(.selectCamera(camera))
                         } label: {
                             HStack(alignment: .top, spacing: 10) {
                                 VStack(alignment: .leading, spacing: 4) {
@@ -191,9 +210,7 @@ struct CameraSettingsView: View {
                         .buttonStyle(.plain)
                         .contextMenu {
                             Button("Edit") {
-                                selectedCameraID = camera.id
-                                draft = camera
-                                editorState = .idle
+                                attemptToLeaveEditor(.selectCamera(camera))
                             }
                             Button("Delete", role: .destructive) {
                                 if selectedCameraID == camera.id {
@@ -263,35 +280,6 @@ struct CameraSettingsView: View {
                     }
 
                     sourcePreviewField
-                }
-
-                HStack(spacing: 10) {
-                    if isEditing {
-                        Button("Cancel") {
-                            resetEditor()
-                        }
-                        .buttonStyle(.bordered)
-                    }
-
-                    Button(action: saveCamera) {
-                        HStack {
-                            if editorState.isValidating {
-                                ProgressView()
-                            } else if let saveButtonSymbolName {
-                                Image(systemName: saveButtonSymbolName)
-                            } else {
-                                EmptyView()
-                            }
-                            Text(saveButtonTitle)
-                                .fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(saveButtonTint)
-                    .disabled(isPrimaryActionDisabled)
-                    .opacity(isPrimaryActionDisabled ? 0.55 : 1)
                 }
             }
         }
@@ -441,10 +429,38 @@ struct CameraSettingsView: View {
         HStack {
             Spacer()
             Button("Done") {
-                dismiss()
+                attemptToLeaveEditor(.dismissSheet)
             }
             .buttonStyle(.bordered)
         }
+    }
+
+    private var cameraActionBar: some View {
+        HStack(spacing: 12) {
+            Button(action: saveCamera) {
+                HStack {
+                    if editorState.isValidating {
+                        ProgressView()
+                    } else if let saveButtonSymbolName {
+                        Image(systemName: saveButtonSymbolName)
+                    }
+                    Text(saveButtonTitle)
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(saveButtonTint)
+            .disabled(isPrimaryActionDisabled)
+            .opacity(isPrimaryActionDisabled ? 0.55 : 1)
+        }
+        .padding(16)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(.quaternary.opacity(0.75), lineWidth: 1)
+        )
     }
 
     @ViewBuilder
@@ -637,7 +653,7 @@ struct CameraSettingsView: View {
     }
 
     private var hasUnsavedCameraChanges: Bool {
-        draft != baselineDraft
+        comparableDraft(draft) != comparableDraft(baselineDraft)
     }
 
     private var isPrimaryActionDisabled: Bool {
@@ -739,6 +755,40 @@ struct CameraSettingsView: View {
             } catch {
                 editorState = .failure(error.localizedDescription)
             }
+        }
+    }
+
+    private func comparableDraft(_ camera: CameraConfig) -> CameraConfig {
+        var comparable = camera.sanitized
+        comparable.id = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+        return comparable
+    }
+
+    private func attemptToLeaveEditor(_ action: PendingLeaveAction) {
+        if hasUnsavedCameraChanges {
+            pendingLeaveAction = action
+            showingUnsavedChangesAlert = true
+        } else {
+            performLeaveAction(action)
+        }
+    }
+
+    private func performPendingLeaveAction() {
+        guard let action = pendingLeaveAction else { return }
+        pendingLeaveAction = nil
+        performLeaveAction(action)
+    }
+
+    private func performLeaveAction(_ action: PendingLeaveAction) {
+        switch action {
+        case .selectCamera(let camera):
+            selectedCameraID = camera.id
+            draft = camera
+            editorState = .idle
+        case .resetEditor:
+            resetEditor()
+        case .dismissSheet:
+            dismiss()
         }
     }
 
