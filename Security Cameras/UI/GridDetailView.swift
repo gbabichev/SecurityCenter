@@ -36,10 +36,11 @@ struct GridDetailView: View {
                                 let index = row * option.columns + column
                                 gridCell(for: index)
                                     .frame(width: cellWidth, height: cellHeight)
-                            }
-                        }
-                    }
                 }
+            }
+        }
+        .hideCursorWhenIdle(enabled: !viewModel.showSettings)
+    }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .padding(padding)
             }

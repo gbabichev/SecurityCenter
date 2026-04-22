@@ -45,6 +45,7 @@ struct CameraDetailView: View {
         .onChange(of: camera.rtspURL) {
             streamStatus = .loading
         }
+        .hideCursorWhenIdle(enabled: !viewModel.showSettings)
     }
 
     @ViewBuilder
