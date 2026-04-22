@@ -82,6 +82,7 @@ struct GridDetailView: View {
             }
         }
         .contentShape(Rectangle())
+        .clipped()
         .onTapGesture(count: 2) {
             guard camera != nil else { return }
             activeSelectionIndex = index
@@ -106,11 +107,41 @@ struct GridDetailView: View {
         } else {
             switch camera.feedMode {
             case .snapshotPolling:
-                SnapshotView(url: camera.snapshotURL, scalingMode: .stretch) { _ in }
+                SnapshotView(
+                    url: camera.snapshotURL,
+                    scalingMode: viewModel.gridPictureStyle == .showWholePicture ? .fit : .stretch
+                ) { _ in }
             case .rtsp:
-                RTSPStreamView(url: camera.rtspURL) { _ in }
+                rtspGridView(for: camera)
             }
         }
+    }
+
+    @ViewBuilder
+    private func rtspGridView(for camera: CameraConfig) -> some View {
+        GeometryReader { proxy in
+            ZStack {
+                Color.black
+
+                if viewModel.gridPictureStyle == .showWholePicture {
+                    let fittedSize = fittedVideoSize(in: proxy.size)
+                    RTSPStreamView(url: camera.rtspURL, isMuted: camera.isMuted) { _ in }
+                        .frame(width: fittedSize.width, height: fittedSize.height)
+                } else {
+                    RTSPStreamView(url: camera.rtspURL, isMuted: camera.isMuted) { _ in }
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .clipped()
+        }
+    }
+
+    private func fittedVideoSize(in size: CGSize) -> CGSize {
+        let aspectRatio = 16.0 / 9.0
+        let fittedWidth = min(size.width, size.height * aspectRatio)
+        let fittedHeight = min(size.height, size.width / aspectRatio)
+        return CGSize(width: fittedWidth, height: fittedHeight)
     }
 
     private func menuButton(for index: Int, camera: CameraConfig?) -> some View {

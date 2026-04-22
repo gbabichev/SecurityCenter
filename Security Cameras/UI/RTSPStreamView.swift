@@ -10,10 +10,11 @@ import VLCKitSPM
 
 struct RTSPStreamView: View {
     let url: URL?
+    let isMuted: Bool
     let onStatusChange: (SnapshotStatus) -> Void
 
     var body: some View {
-        VLCPlayerContainer(url: url, onStatusChange: onStatusChange)
+        VLCPlayerContainer(url: url, isMuted: isMuted, onStatusChange: onStatusChange)
             .background(Color.black)
     }
 }
@@ -28,6 +29,7 @@ private typealias VLCPlatformView = NSView
 
 private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
     let url: URL?
+    let isMuted: Bool
     let onStatusChange: (SnapshotStatus) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -39,13 +41,13 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         let view = VLCPlatformView()
         view.backgroundColor = .black
         context.coordinator.attach(to: view)
-        context.coordinator.update(url: url)
+        context.coordinator.update(url: url, isMuted: isMuted)
         return view
     }
 
     func updateUIView(_ view: VLCPlatformView, context: Context) {
         context.coordinator.attach(to: view)
-        context.coordinator.update(url: url)
+        context.coordinator.update(url: url, isMuted: isMuted)
     }
 
     static func dismantleUIView(_ view: VLCPlatformView, coordinator: Coordinator) {
@@ -57,13 +59,13 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.black.cgColor
         context.coordinator.attach(to: view)
-        context.coordinator.update(url: url)
+        context.coordinator.update(url: url, isMuted: isMuted)
         return view
     }
 
     func updateNSView(_ view: VLCPlatformView, context: Context) {
         context.coordinator.attach(to: view)
-        context.coordinator.update(url: url)
+        context.coordinator.update(url: url, isMuted: isMuted)
     }
 
     static func dismantleNSView(_ view: VLCPlatformView, coordinator: Coordinator) {
@@ -81,6 +83,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         ])
         private let onStatusChange: (SnapshotStatus) -> Void
         private var currentURL: URL?
+        private var currentIsMuted = false
         private var reconnectTask: Task<Void, Never>?
         private var isActive = false
         private var hasShownVideo = false
@@ -94,10 +97,18 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         func attach(to view: VLCPlatformView) {
             player.drawable = view
             isActive = true
+            applyMute()
         }
 
-        func update(url: URL?) {
-            guard currentURL != url else { return }
+        func update(url: URL?, isMuted: Bool) {
+            let didURLChange = currentURL != url
+            let didMuteChange = currentIsMuted != isMuted
+            guard didURLChange || didMuteChange else { return }
+
+            currentIsMuted = isMuted
+            applyMute()
+            guard didURLChange else { return }
+
             reconnectTask?.cancel()
             currentURL = url
             hasShownVideo = false
@@ -168,6 +179,10 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             media.addOption("network-caching=300")
             media.addOption("live-caching=300")
             media.addOption("rtsp-tcp")
+        }
+
+        private func applyMute() {
+            player.audio?.isMuted = currentIsMuted
         }
 
         private func publish(_ status: SnapshotStatus) {

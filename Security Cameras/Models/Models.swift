@@ -180,6 +180,31 @@ enum GridOption: String, CaseIterable, Identifiable, Hashable, Codable {
     }
 }
 
+enum GridPictureStyle: String, CaseIterable, Identifiable, Hashable, Codable {
+    case showWholePicture
+    case fillEachBox
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .showWholePicture:
+            return "Show whole picture"
+        case .fillEachBox:
+            return "Fill each box"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .showWholePicture:
+            return "Keeps the full camera view visible."
+        case .fillEachBox:
+            return "Uses all the space in each box."
+        }
+    }
+}
+
 enum SidebarItem: Hashable {
     case camera(CameraConfig.ID)
     case grid(GridOption)
@@ -196,6 +221,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
     var feedMode: CameraFeedMode = .snapshotPolling
     var isEnabled: Bool = true
     var streamVariant: CameraStreamVariant = .main
+    var isMuted: Bool = false
 
     init(
         id: UUID = UUID(),
@@ -207,7 +233,8 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         useHTTPS: Bool,
         feedMode: CameraFeedMode = .snapshotPolling,
         isEnabled: Bool = true,
-        streamVariant: CameraStreamVariant = .main
+        streamVariant: CameraStreamVariant = .main,
+        isMuted: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -219,6 +246,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         self.feedMode = feedMode
         self.isEnabled = isEnabled
         self.streamVariant = streamVariant
+        self.isMuted = isMuted
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -232,6 +260,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         case feedMode
         case isEnabled
         case streamVariant
+        case isMuted
     }
 
     init(from decoder: Decoder) throws {
@@ -246,6 +275,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         feedMode = try container.decodeIfPresent(CameraFeedMode.self, forKey: .feedMode) ?? .snapshotPolling
         isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
         streamVariant = try container.decodeIfPresent(CameraStreamVariant.self, forKey: .streamVariant) ?? .main
+        isMuted = try container.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
     }
 
     var displayName: String {
@@ -263,7 +293,8 @@ struct CameraConfig: Identifiable, Codable, Hashable {
             useHTTPS: useHTTPS,
             feedMode: feedMode,
             isEnabled: isEnabled,
-            streamVariant: streamVariant
+            streamVariant: streamVariant,
+            isMuted: isMuted
         )
     }
 
@@ -319,7 +350,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
             URLQueryItem(name: "channel", value: "\(max(channel, 0))"),
             URLQueryItem(name: "rs", value: id.uuidString.replacingOccurrences(of: "-", with: "")),
             URLQueryItem(name: "user", value: username),
-            URLQueryItem(name: "password", value: password.isEmpty ? "" : "••••••")
+            URLQueryItem(name: "password", value: password)
         ]
         if streamVariant == .sub {
             queryItems.append(URLQueryItem(name: "width", value: "640"))
@@ -330,11 +361,19 @@ struct CameraConfig: Identifiable, Codable, Hashable {
     }
 
     var formattedRTSPURL: String {
-        guard var components = rtspURL.flatMap({ URLComponents(url: $0, resolvingAgainstBaseURL: false) }) else {
+        guard let host = rtspURL?.host,
+              let path = rtspURL?.path else {
             return "Invalid camera address"
         }
-        components.password = password.isEmpty ? "" : "••••••"
-        return components.string ?? "Invalid camera address"
+        let credentials: String
+        if username.isEmpty {
+            credentials = ""
+        } else if password.isEmpty {
+            credentials = "\(username)@"
+        } else {
+            credentials = "\(username):\(password)@"
+        }
+        return "rtsp://\(credentials)\(host):554\(path)"
     }
 
     static var emptyDraft: CameraConfig {
@@ -347,7 +386,8 @@ struct CameraConfig: Identifiable, Codable, Hashable {
             useHTTPS: false,
             feedMode: .snapshotPolling,
             isEnabled: true,
-            streamVariant: .main
+            streamVariant: .main,
+            isMuted: false
         )
     }
 }

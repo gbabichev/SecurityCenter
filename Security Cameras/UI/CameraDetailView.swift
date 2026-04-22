@@ -55,7 +55,7 @@ struct CameraDetailView: View {
                 streamStatus = status
             }
         case .rtsp:
-            RTSPStreamView(url: camera.rtspURL) { status in
+            RTSPStreamView(url: camera.rtspURL, isMuted: camera.isMuted) { status in
                 streamStatus = status
             }
         }

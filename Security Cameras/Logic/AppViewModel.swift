@@ -14,6 +14,7 @@ final class AppViewModel: ObservableObject {
     @AppStorage("gridAssignmentsJSON") private var gridAssignmentsJSON: String = "{}"
     @AppStorage("showCameraNameInDisplay") private var showCameraNameInDisplayRaw = true
     @AppStorage("cameraNameLocation") private var cameraNameLocationRaw = CameraNameLocation.topLeft.rawValue
+    @AppStorage("gridPictureStyle") private var gridPictureStyleRaw = GridPictureStyle.fillEachBox.rawValue
     private var isLoading = true
 
     @Published var cameras: [CameraConfig] = [] {
@@ -37,6 +38,11 @@ final class AppViewModel: ObservableObject {
             cameraNameLocationRaw = cameraNameLocation.rawValue
         }
     }
+    @Published var gridPictureStyle: GridPictureStyle = .fillEachBox {
+        didSet {
+            gridPictureStyleRaw = gridPictureStyle.rawValue
+        }
+    }
     @Published var showSettings = false
     @Published var selectedSidebarItem: SidebarItem?
     @Published var availability: [CameraConfig.ID: Bool] = [:]
@@ -46,6 +52,7 @@ final class AppViewModel: ObservableObject {
         loadCameras()
         showCameraNameInDisplay = showCameraNameInDisplayRaw
         cameraNameLocation = CameraNameLocation(rawValue: cameraNameLocationRaw) ?? .topLeft
+        gridPictureStyle = GridPictureStyle(rawValue: gridPictureStyleRaw) ?? .fillEachBox
         isLoading = false
     }
 
@@ -79,7 +86,8 @@ final class AppViewModel: ObservableObject {
                 result[item.key.rawValue] = item.value
             },
             showCameraNameInDisplay: showCameraNameInDisplay,
-            cameraNameLocation: cameraNameLocation
+            cameraNameLocation: cameraNameLocation,
+            gridPictureStyle: gridPictureStyle
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -98,6 +106,7 @@ final class AppViewModel: ObservableObject {
         }
         showCameraNameInDisplay = payload.showCameraNameInDisplay
         cameraNameLocation = payload.cameraNameLocation
+        gridPictureStyle = payload.gridPictureStyle
         availability = [:]
         selectedSidebarItem = cameras.first.map { .camera($0.id) }
     }
@@ -296,6 +305,7 @@ private struct AppConfigurationPayload: Codable {
     let gridAssignments: [String: [CameraConfig.ID?]]
     let showCameraNameInDisplay: Bool
     let cameraNameLocation: CameraNameLocation
+    let gridPictureStyle: GridPictureStyle
 }
 
 private extension Array {

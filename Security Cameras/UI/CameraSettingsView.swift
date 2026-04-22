@@ -7,39 +7,47 @@
 
 import SwiftUI
 
+#if os(iOS)
+import UIKit
+#else
+import AppKit
+#endif
+
 struct CameraSettingsView: View {
+    private enum SettingsTab: Hashable {
+        case app
+        case camera
+    }
+
     @ObservedObject var viewModel: AppViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var draft = CameraConfig.emptyDraft
     @State private var selectedCameraID: CameraConfig.ID?
     @State private var editorState: EditorState = .idle
+    @State private var selectedTab: SettingsTab = .camera
+    @State private var isPasswordVisible = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                header
+        VStack(alignment: .leading, spacing: 14) {
+            header
 
-#if os(macOS)
-                HStack(alignment: .top, spacing: 14) {
-                    camerasCard
-                        .frame(width: 260)
-                    VStack(spacing: 14) {
-                        editorCard
-                        displayCard
+            TabView(selection: $selectedTab) {
+                appSettingsTab
+                    .tabItem {
+                        Label("App Settings", systemImage: "gearshape")
                     }
-                }
-#else
-                VStack(spacing: 14) {
-                    camerasCard
-                    editorCard
-                    displayCard
-                }
-#endif
+                    .tag(SettingsTab.app)
 
-                footer
+                cameraSettingsTab
+                    .tabItem {
+                        Label("Camera Settings", systemImage: "video")
+                    }
+                    .tag(SettingsTab.camera)
             }
-            .padding(16)
+
+            footer
         }
+        .padding(16)
         .onChange(of: draft) { _, _ in
             guard !editorState.isValidating else { return }
             editorState = .idle
@@ -54,23 +62,82 @@ struct CameraSettingsView: View {
 #endif
     }
 
+    private var appSettingsTab: some View {
+        ScrollView {
+            settingsCard(title: "App Settings", subtitle: "Preferences for the whole app.") {
+                VStack(alignment: .leading, spacing: 12) {
+                    fieldBlock(title: "Camera Grid", caption: "Choose how pictures should look in the grid view.") {
+                        Picker("Camera Grid", selection: $viewModel.gridPictureStyle) {
+                            ForEach(GridPictureStyle.allCases) { style in
+                                Text(style.title)
+                                    .tag(style)
+                            }
+                        }
+#if os(iOS)
+                        .pickerStyle(.menu)
+#else
+                        .pickerStyle(.segmented)
+#endif
+
+                        Text(viewModel.gridPictureStyle.description)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    private var cameraSettingsTab: some View {
+        ScrollView {
+#if os(macOS)
+            HStack(alignment: .top, spacing: 14) {
+                camerasCard
+                    .frame(width: 260)
+                VStack(spacing: 14) {
+                    editorCard
+                    displayCard
+                }
+            }
+            .padding(.top, 4)
+#else
+            VStack(spacing: 14) {
+                camerasCard
+                editorCard
+                displayCard
+            }
+            .padding(.top, 4)
+#endif
+        }
+    }
+
     private var header: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Settings")
                     .font(.title2.weight(.semibold))
-                Text(isEditing ? "Edit selected camera." : "Add camera or pick one to edit.")
+                Text(headerSubtitle)
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            if isEditing {
+            if selectedTab == .camera && isEditing {
                 Button("New Camera") {
                     resetEditor()
                 }
                 .buttonStyle(.bordered)
             }
+        }
+    }
+
+    private var headerSubtitle: String {
+        switch selectedTab {
+        case .app:
+            return "Manage app-wide preferences."
+        case .camera:
+            return isEditing ? "Edit selected camera." : "Add camera or pick one to edit."
         }
     }
 
@@ -104,8 +171,10 @@ struct CameraSettingsView: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                             .background(selectedCameraID == camera.id ? AnyShapeStyle(.thinMaterial) : AnyShapeStyle(.clear), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .buttonStyle(.plain)
                         .contextMenu {
                             Button("Edit") {
@@ -132,22 +201,7 @@ struct CameraSettingsView: View {
             subtitle: isEditing ? "Save updates after source validation." : "Camera is saved only after source validation."
         ) {
             VStack(alignment: .leading, spacing: 14) {
-                statusCard
-
-                fieldBlock(title: "Name", caption: "Optional label.") {
-                    TextField("Front Door", text: $draft.name)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                fieldBlock(title: "Address", caption: "IP or host name.") {
-                    TextField("192.168.1.50", text: $draft.host)
-#if os(iOS)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
-#endif
-                        .textFieldStyle(.roundedBorder)
-                }
+                nameAndAddressRow
 
                 credentialsSection
 
@@ -159,6 +213,10 @@ struct CameraSettingsView: View {
                 }
 
                 streamVariantField
+
+                if draft.feedMode == .rtsp {
+                    muteCameraField
+                }
 
                 sourcePreviewField
 
@@ -174,10 +232,12 @@ struct CameraSettingsView: View {
                         HStack {
                             if editorState.isValidating {
                                 ProgressView()
+                            } else if let saveButtonSymbolName {
+                                Image(systemName: saveButtonSymbolName)
                             } else {
-                                Image(systemName: isEditing ? "square.and.arrow.down.fill" : "plus.circle.fill")
+                                EmptyView()
                             }
-                            Text(editorState.isValidating ? "Validating…" : (isEditing ? "Save Changes" : "Add Camera"))
+                            Text(saveButtonTitle)
                                 .fontWeight(.semibold)
                         }
                         .frame(maxWidth: .infinity)
@@ -188,6 +248,40 @@ struct CameraSettingsView: View {
                     .opacity(isPrimaryActionDisabled ? 0.55 : 1)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var nameAndAddressRow: some View {
+#if os(macOS)
+        HStack(alignment: .top, spacing: 12) {
+            nameField
+            addressField
+        }
+#else
+        VStack(spacing: 12) {
+            nameField
+            addressField
+        }
+#endif
+    }
+
+    private var nameField: some View {
+        fieldBlock(title: "Name", caption: "Optional label.") {
+            TextField("Front Door", text: $draft.name)
+                .textFieldStyle(.roundedBorder)
+        }
+    }
+
+    private var addressField: some View {
+        fieldBlock(title: "Address", caption: "IP or host name.") {
+            TextField("192.168.1.50", text: $draft.host)
+#if os(iOS)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.URL)
+#endif
+                .textFieldStyle(.roundedBorder)
         }
     }
 
@@ -207,22 +301,28 @@ struct CameraSettingsView: View {
         }
     }
 
-    private var statusCard: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: editorState.symbolName)
-                .font(.body)
-                .frame(width: 20)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(editorState.title)
-                    .font(.headline)
-                Text(editorState.message(isEditing: isEditing, feedMode: draft.feedMode))
-                    .foregroundStyle(.secondary)
-            }
+    private var saveButtonTitle: String {
+        switch editorState {
+        case .idle:
+            return isEditing ? "Save Changes" : "Add Camera"
+        case .validating:
+            return "Validating…"
+        case .success(let message), .failure(let message):
+            return message
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var saveButtonSymbolName: String? {
+        switch editorState {
+        case .idle:
+            return isEditing ? "square.and.arrow.down.fill" : "plus.circle.fill"
+        case .validating:
+            return nil
+        case .success:
+            return "checkmark.seal.fill"
+        case .failure:
+            return "xmark.octagon.fill"
+        }
     }
 
     private var footer: some View {
@@ -263,8 +363,21 @@ struct CameraSettingsView: View {
 
     private var passwordField: some View {
         fieldBlock(title: "Password", caption: "Stored with camera config.") {
-            SecureField("Password", text: $draft.password)
+            HStack(spacing: 8) {
+                Group {
+                    if isPasswordVisible {
+                        TextField("Password", text: $draft.password)
+                    } else {
+                        SecureField("Password", text: $draft.password)
+                    }
+                }
                 .textFieldStyle(.roundedBorder)
+
+                Button(isPasswordVisible ? "Hide" : "Show") {
+                    isPasswordVisible.toggle()
+                }
+                .buttonStyle(.bordered)
+            }
         }
     }
 
@@ -321,6 +434,10 @@ struct CameraSettingsView: View {
         }
     }
 
+    private var muteCameraField: some View {
+        Toggle("Mute Camera", isOn: $draft.isMuted)
+    }
+
     private var streamVariantCaption: String {
         switch draft.feedMode {
         case .snapshotPolling:
@@ -332,13 +449,10 @@ struct CameraSettingsView: View {
 
     private var sourcePreviewField: some View {
         fieldBlock(title: sourcePreviewTitle, caption: sourcePreviewCaption) {
-            Text(sourcePreviewValue)
-                .font(.footnote.monospaced())
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            Button("Copy URL to Clipboard") {
+                copySourceURLToClipboard()
+            }
+            .buttonStyle(.bordered)
         }
     }
 
@@ -454,6 +568,16 @@ struct CameraSettingsView: View {
         selectedCameraID = nil
         draft = .emptyDraft
         editorState = .idle
+        isPasswordVisible = false
+    }
+
+    private func copySourceURLToClipboard() {
+#if os(iOS)
+        UIPasteboard.general.string = sourcePreviewValue
+#else
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(sourcePreviewValue, forType: .string)
+#endif
     }
 }
 
