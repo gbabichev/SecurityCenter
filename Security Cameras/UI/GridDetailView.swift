@@ -6,6 +6,9 @@
 //
 
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 struct GridDetailView: View {
     @ObservedObject var viewModel: AppViewModel
@@ -76,15 +79,21 @@ struct GridDetailView: View {
             }
 
             if camera == nil {
-                emptyCellButton(for: index)
+                emptyCellMenu(for: index)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            } else {
-                menuButton(for: index)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
         }
         .contentShape(Rectangle())
         .clipped()
+#if os(macOS)
+        .overlay {
+            if camera != nil {
+                DoubleClickMenuAnchor(
+                    items: selectionMenuItems(for: index, includeClear: true)
+                )
+            }
+        }
+#else
         .onTapGesture(count: 2) {
             guard camera != nil else { return }
             activeSelectionIndex = index
@@ -92,6 +101,7 @@ struct GridDetailView: View {
         .popover(isPresented: bindingForSelectionPopover(index: index), arrowEdge: .bottom) {
             selectionPopover(for: index)
         }
+#endif
     }
 
     @ViewBuilder
@@ -146,29 +156,15 @@ struct GridDetailView: View {
         return CGSize(width: fittedWidth, height: fittedHeight)
     }
 
-    private func menuButton(for index: Int) -> some View {
+    private func emptyCellMenu(for index: Int) -> some View {
         Menu {
-            ForEach(viewModel.cameras) { candidate in
-                Button(candidate.displayName) {
-                    viewModel.setGridCameraID(layout: layout, index: index, cameraID: candidate.id)
+            if viewModel.cameras.isEmpty {
+                Text("No cameras available")
+            } else {
+                ForEach(selectionMenuItems(for: index, includeClear: false)) { item in
+                    Button(item.title, action: item.action)
                 }
             }
-            Button("Clear") {
-                viewModel.setGridCameraID(layout: layout, index: index, cameraID: nil)
-            }
-        } label: {
-            Image(systemName: "ellipsis.circle")
-                .imageScale(.large)
-                .padding(8)
-                .background(.black.opacity(0.45), in: Circle())
-                .foregroundStyle(.white)
-        }
-        .padding(8)
-    }
-
-    private func emptyCellButton(for index: Int) -> some View {
-        Button {
-            activeSelectionIndex = index
         } label: {
             Text("Select Camera")
                 .font(.headline.weight(.medium))
@@ -182,6 +178,26 @@ struct GridDetailView: View {
                 )
         }
         .buttonStyle(.plain)
+    }
+
+    private func selectionMenuItems(for index: Int, includeClear: Bool) -> [GridSelectionMenuItem] {
+        var items = viewModel.cameras.map { camera in
+            GridSelectionMenuItem(title: camera.displayName) {
+                viewModel.setGridCameraID(layout: layout, index: index, cameraID: camera.id)
+                activeSelectionIndex = nil
+            }
+        }
+
+        if includeClear {
+            items.append(
+                GridSelectionMenuItem(title: "Clear") {
+                    viewModel.setGridCameraID(layout: layout, index: index, cameraID: nil)
+                    activeSelectionIndex = nil
+                }
+            )
+        }
+
+        return items
     }
 
     private func bindingForSelectionPopover(index: Int) -> Binding<Bool> {
@@ -221,3 +237,79 @@ struct GridDetailView: View {
         .frame(minWidth: 180)
     }
 }
+
+private struct GridSelectionMenuItem: Identifiable {
+    let id = UUID()
+    let title: String
+    let action: () -> Void
+}
+
+#if os(macOS)
+private struct DoubleClickMenuAnchor: NSViewRepresentable {
+    let items: [GridSelectionMenuItem]
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(items: items)
+    }
+
+    func makeNSView(context: Context) -> DoubleClickMenuView {
+        let view = DoubleClickMenuView()
+        view.coordinator = context.coordinator
+        return view
+    }
+
+    func updateNSView(_ nsView: DoubleClickMenuView, context: Context) {
+        context.coordinator.items = items
+        nsView.coordinator = context.coordinator
+    }
+
+    final class Coordinator: NSObject {
+        var items: [GridSelectionMenuItem]
+
+        init(items: [GridSelectionMenuItem]) {
+            self.items = items
+        }
+
+        func showMenu(at point: NSPoint, in view: NSView) {
+            let menu = NSMenu()
+            for (index, item) in items.enumerated() {
+                let menuItem = NSMenuItem(title: item.title, action: #selector(handleMenuItem(_:)), keyEquivalent: "")
+                menuItem.target = self
+                menuItem.tag = index
+                menu.addItem(menuItem)
+            }
+            menu.popUp(positioning: nil, at: point, in: view)
+        }
+
+        @objc
+        private func handleMenuItem(_ sender: NSMenuItem) {
+            guard items.indices.contains(sender.tag) else { return }
+            items[sender.tag].action()
+        }
+    }
+}
+
+private final class DoubleClickMenuView: NSView {
+    weak var coordinator: DoubleClickMenuAnchor.Coordinator?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = false
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        self
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2 {
+            let point = convert(event.locationInWindow, from: nil)
+            coordinator?.showMenu(at: point, in: self)
+        }
+    }
+}
+#endif
