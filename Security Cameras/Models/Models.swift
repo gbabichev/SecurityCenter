@@ -222,6 +222,8 @@ struct CameraConfig: Identifiable, Codable, Hashable {
     var isEnabled: Bool = true
     var streamVariant: CameraStreamVariant = .main
     var isMuted: Bool = false
+    var showsNameInDisplay: Bool = true
+    var nameLocation: CameraNameLocation = .topLeft
 
     init(
         id: UUID = UUID(),
@@ -234,7 +236,9 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         feedMode: CameraFeedMode = .snapshotPolling,
         isEnabled: Bool = true,
         streamVariant: CameraStreamVariant = .main,
-        isMuted: Bool = false
+        isMuted: Bool = false,
+        showsNameInDisplay: Bool = true,
+        nameLocation: CameraNameLocation = .topLeft
     ) {
         self.id = id
         self.name = name
@@ -247,6 +251,8 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         self.isEnabled = isEnabled
         self.streamVariant = streamVariant
         self.isMuted = isMuted
+        self.showsNameInDisplay = showsNameInDisplay
+        self.nameLocation = nameLocation
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -261,6 +267,8 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         case isEnabled
         case streamVariant
         case isMuted
+        case showsNameInDisplay
+        case nameLocation
     }
 
     init(from decoder: Decoder) throws {
@@ -276,6 +284,8 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
         streamVariant = try container.decodeIfPresent(CameraStreamVariant.self, forKey: .streamVariant) ?? .main
         isMuted = try container.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
+        showsNameInDisplay = try container.decodeIfPresent(Bool.self, forKey: .showsNameInDisplay) ?? true
+        nameLocation = try container.decodeIfPresent(CameraNameLocation.self, forKey: .nameLocation) ?? .topLeft
     }
 
     var displayName: String {
@@ -294,7 +304,9 @@ struct CameraConfig: Identifiable, Codable, Hashable {
             feedMode: feedMode,
             isEnabled: isEnabled,
             streamVariant: streamVariant,
-            isMuted: isMuted
+            isMuted: isMuted,
+            showsNameInDisplay: showsNameInDisplay,
+            nameLocation: nameLocation
         )
     }
 
@@ -387,7 +399,9 @@ struct CameraConfig: Identifiable, Codable, Hashable {
             feedMode: .snapshotPolling,
             isEnabled: true,
             streamVariant: .main,
-            isMuted: false
+            isMuted: false,
+            showsNameInDisplay: true,
+            nameLocation: .topLeft
         )
     }
 }

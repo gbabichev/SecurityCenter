@@ -62,7 +62,7 @@ struct GridDetailView: View {
                     )
             }
 
-            if let camera, viewModel.showCameraNameInDisplay {
+            if let camera, camera.showsNameInDisplay {
                 Text(camera.displayName)
                     .font(.caption)
                     .foregroundStyle(.white)
@@ -70,7 +70,7 @@ struct GridDetailView: View {
                     .background(.black.opacity(0.6))
                     .cornerRadius(6)
                     .padding(8)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: viewModel.cameraNameLocation.alignment)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: camera.nameLocation.alignment)
             }
 
             if camera == nil {

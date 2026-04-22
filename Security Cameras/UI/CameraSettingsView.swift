@@ -14,35 +14,24 @@ import AppKit
 #endif
 
 struct CameraSettingsView: View {
-    private enum SettingsTab: Hashable {
-        case app
-        case camera
-    }
-
     @ObservedObject var viewModel: AppViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var draft = CameraConfig.emptyDraft
     @State private var selectedCameraID: CameraConfig.ID?
     @State private var editorState: EditorState = .idle
-    @State private var selectedTab: SettingsTab = .camera
     @State private var isPasswordVisible = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
 
-            TabView(selection: $selectedTab) {
-                appSettingsTab
-                    .tabItem {
-                        Label("App Settings", systemImage: "gearshape")
-                    }
-                    .tag(SettingsTab.app)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    appSettingsSection
 
-                cameraSettingsTab
-                    .tabItem {
-                        Label("Camera Settings", systemImage: "video")
-                    }
-                    .tag(SettingsTab.camera)
+                    cameraSettingsSection
+                }
+                .padding(.top, 4)
             }
 
             footer
@@ -58,56 +47,84 @@ struct CameraSettingsView: View {
             }
         }
 #if os(macOS)
-        .frame(minWidth: 760, minHeight: 540)
+        .frame(minWidth: 850, minHeight: 620)
 #endif
     }
 
-    private var appSettingsTab: some View {
-        ScrollView {
-            settingsCard(title: "App Settings", subtitle: "Preferences for the whole app.") {
-                VStack(alignment: .leading, spacing: 12) {
-                    fieldBlock(title: "Camera Grid", caption: "Choose how pictures should look in the grid view.") {
-                        Picker("Camera Grid", selection: $viewModel.gridPictureStyle) {
-                            ForEach(GridPictureStyle.allCases) { style in
-                                Text(style.title)
-                                    .tag(style)
-                            }
-                        }
-#if os(iOS)
-                        .pickerStyle(.menu)
-#else
-                        .pickerStyle(.segmented)
-#endif
+    private var appSettingsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeading("App Settings", subtitle: "A few preferences for the whole app.")
 
+#if os(macOS)
+            HStack(alignment: .center, spacing: 16) {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Camera Grid")
+                            .font(.headline)
                         Text(viewModel.gridPictureStyle.description)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
+                } icon: {
+                    Image(systemName: "square.grid.2x2")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 0)
+
+                Picker("Camera Grid", selection: $viewModel.gridPictureStyle) {
+                    ForEach(GridPictureStyle.allCases) { style in
+                        Text(style.title)
+                            .tag(style)
+                    }
+                }
+                .frame(maxWidth: 360)
+                .pickerStyle(.segmented)
+            }
+#else
+            VStack(alignment: .leading, spacing: 12) {
+                fieldBlock(title: "Camera Grid", caption: "Choose how pictures should look in the grid view.") {
+                    Picker("Camera Grid", selection: $viewModel.gridPictureStyle) {
+                        ForEach(GridPictureStyle.allCases) { style in
+                            Text(style.title)
+                                .tag(style)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    Text(viewModel.gridPictureStyle.description)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .padding(.top, 4)
+#endif
         }
+        .padding(18)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(.quaternary.opacity(0.75), lineWidth: 1)
+        )
     }
 
-    private var cameraSettingsTab: some View {
-        ScrollView {
+    private var cameraSettingsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeading("Camera Settings", subtitle: "Pick a camera on the left, then edit on the right.")
+
 #if os(macOS)
             HStack(alignment: .top, spacing: 14) {
                 camerasCard
                     .frame(width: 260)
-                VStack(spacing: 14) {
-                    editorCard
-                    displayCard
-                }
+                Divider()
+                    .padding(.vertical, 4)
+                editorCard
             }
-            .padding(.top, 4)
 #else
             VStack(spacing: 14) {
                 camerasCard
                 editorCard
-                displayCard
             }
-            .padding(.top, 4)
 #endif
         }
     }
@@ -117,27 +134,18 @@ struct CameraSettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Settings")
                     .font(.title2.weight(.semibold))
-                Text(headerSubtitle)
+                Text("Camera setup and app behavior.")
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            if selectedTab == .camera && isEditing {
+            if isEditing {
                 Button("New Camera") {
                     resetEditor()
                 }
                 .buttonStyle(.bordered)
             }
-        }
-    }
-
-    private var headerSubtitle: String {
-        switch selectedTab {
-        case .app:
-            return "Manage app-wide preferences."
-        case .camera:
-            return isEditing ? "Edit selected camera." : "Add camera or pick one to edit."
         }
     }
 
@@ -147,7 +155,7 @@ struct CameraSettingsView: View {
                 if viewModel.cameras.isEmpty {
                     placeholderCard(title: "No cameras yet", message: "Use form to add first camera.")
                 } else {
-                    ForEach(viewModel.cameras) { camera in
+                    ForEach(Array(viewModel.cameras.enumerated()), id: \.element.id) { index, camera in
                         Button {
                             selectedCameraID = camera.id
                             draft = camera
@@ -189,10 +197,21 @@ struct CameraSettingsView: View {
                                 viewModel.deleteCamera(camera)
                             }
                         }
+
+                        if index < viewModel.cameras.count - 1 {
+                            Divider()
+                                .padding(.vertical, 4)
+                        }
                     }
                 }
             }
         }
+        .padding(18)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(.quaternary.opacity(0.75), lineWidth: 1)
+        )
     }
 
     private var editorCard: some View {
@@ -201,24 +220,34 @@ struct CameraSettingsView: View {
             subtitle: isEditing ? "Save updates after source validation." : "Camera is saved only after source validation."
         ) {
             VStack(alignment: .leading, spacing: 14) {
-                nameAndAddressRow
-
-                credentialsSection
-
-                enabledField
-                feedModeField
-
-                if draft.isEnabled && draft.feedMode == .snapshotPolling {
-                    protocolField
+                editorGroup("Basics") {
+                    nameAndAddressRow
+                    enabledField
                 }
 
-                streamVariantField
-
-                if draft.feedMode == .rtsp {
-                    muteCameraField
+                editorGroup("Display") {
+                    displayNameField
                 }
 
-                sourcePreviewField
+                editorGroup("Access") {
+                    credentialsSection
+                }
+
+                editorGroup("Connection") {
+                    feedModeField
+
+                    if draft.isEnabled && draft.feedMode == .snapshotPolling {
+                        protocolField
+                    }
+
+                    streamVariantField
+
+                    if draft.feedMode == .rtsp {
+                        muteCameraField
+                    }
+
+                    sourcePreviewField
+                }
 
                 HStack(spacing: 10) {
                     if isEditing {
@@ -244,11 +273,18 @@ struct CameraSettingsView: View {
                         .padding(.vertical, 11)
                     }
                     .buttonStyle(.borderedProminent)
+                    .tint(saveButtonTint)
                     .disabled(isPrimaryActionDisabled)
                     .opacity(isPrimaryActionDisabled ? 0.55 : 1)
                 }
             }
         }
+        .padding(18)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(.quaternary.opacity(0.75), lineWidth: 1)
+        )
     }
 
     @ViewBuilder
@@ -285,18 +321,29 @@ struct CameraSettingsView: View {
         }
     }
 
-    private var displayCard: some View {
-        settingsCard(title: "Display", subtitle: "Overlay preferences.") {
-            VStack(alignment: .leading, spacing: 12) {
-                Toggle("Show camera name in display", isOn: $viewModel.showCameraNameInDisplay)
+    private var displayNameField: some View {
+        fieldBlock(title: "Display", caption: "Choose if this camera name appears on pictures, and where.") {
+            Toggle("Show camera name on picture", isOn: $draft.showsNameInDisplay)
 
-                Picker("Camera name location", selection: $viewModel.cameraNameLocation) {
-                    ForEach(CameraNameLocation.allCases) { location in
-                        Text(location.title)
-                            .tag(location)
+            if draft.showsNameInDisplay {
+                HStack(alignment: .center, spacing: 12) {
+                    Text("Position")
+                        .foregroundStyle(.secondary)
+
+                    Picker("Position", selection: $draft.nameLocation) {
+                        ForEach(CameraNameLocation.allCases) { location in
+                            Text(location.title)
+                                .tag(location)
+                        }
                     }
+#if os(iOS)
+                    .pickerStyle(.menu)
+#else
+                    .pickerStyle(.menu)
+#endif
+
+                    Spacer(minLength: 0)
                 }
-                .pickerStyle(.segmented)
             }
         }
     }
@@ -304,7 +351,10 @@ struct CameraSettingsView: View {
     private var saveButtonTitle: String {
         switch editorState {
         case .idle:
-            return isEditing ? "Save Changes" : "Add Camera"
+            if isEditing {
+                return hasUnsavedCameraChanges ? "Save Changes" : "No Changes"
+            }
+            return "Add Camera"
         case .validating:
             return "Validating…"
         case .success(let message), .failure(let message):
@@ -315,13 +365,32 @@ struct CameraSettingsView: View {
     private var saveButtonSymbolName: String? {
         switch editorState {
         case .idle:
-            return isEditing ? "square.and.arrow.down.fill" : "plus.circle.fill"
+            if isEditing {
+                return hasUnsavedCameraChanges ? "square.and.arrow.down.fill" : "checkmark.circle.fill"
+            }
+            return "plus.circle.fill"
         case .validating:
             return nil
         case .success:
             return "checkmark.seal.fill"
         case .failure:
             return "xmark.octagon.fill"
+        }
+    }
+
+    private var saveButtonTint: Color {
+        switch editorState {
+        case .idle:
+            if isEditing {
+                return hasUnsavedCameraChanges ? .orange : .gray
+            }
+            return .accentColor
+        case .validating:
+            return .accentColor
+        case .success:
+            return .green
+        case .failure:
+            return .red
         }
     }
 
@@ -490,29 +559,60 @@ struct CameraSettingsView: View {
         selectedCameraID != nil
     }
 
+    private var baselineDraft: CameraConfig {
+        guard let selectedCameraID else {
+            return .emptyDraft
+        }
+        return viewModel.cameras.first(where: { $0.id == selectedCameraID }) ?? .emptyDraft
+    }
+
+    private var hasUnsavedCameraChanges: Bool {
+        draft != baselineDraft
+    }
+
     private var isPrimaryActionDisabled: Bool {
-        draft.host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || editorState.isValidating
+        if draft.host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || editorState.isValidating {
+            return true
+        }
+        if isEditing && !hasUnsavedCameraChanges {
+            return true
+        }
+        return false
     }
 
     private func settingsCard<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline.weight(.semibold))
-                Text(subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+            sectionHeading(title, subtitle: subtitle)
 
             content()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func sectionHeading(_ title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.headline.weight(.semibold))
+            Text(subtitle)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func editorGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            VStack(alignment: .leading, spacing: 14) {
+                content()
+            }
+        }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func placeholderCard(title: String, message: String) -> some View {

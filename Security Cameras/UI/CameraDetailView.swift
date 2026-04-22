@@ -125,7 +125,7 @@ struct CameraDetailView: View {
     }
 
     private var overlayAlignment: Alignment {
-        switch viewModel.cameraNameLocation {
+        switch camera.nameLocation {
         case .topLeft:
             .topLeading
         case .topRight:
@@ -139,7 +139,7 @@ struct CameraDetailView: View {
 
     @ViewBuilder
     private var cameraOverlay: some View {
-        if viewModel.showCameraNameInDisplay {
+        if camera.showsNameInDisplay {
             Text(camera.displayName)
                 .font(.headline)
                 .foregroundStyle(.white)

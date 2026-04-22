@@ -12,8 +12,6 @@ import Combine
 final class AppViewModel: ObservableObject {
     @AppStorage("camerasJSON") private var camerasJSON: String = "[]"
     @AppStorage("gridAssignmentsJSON") private var gridAssignmentsJSON: String = "{}"
-    @AppStorage("showCameraNameInDisplay") private var showCameraNameInDisplayRaw = true
-    @AppStorage("cameraNameLocation") private var cameraNameLocationRaw = CameraNameLocation.topLeft.rawValue
     @AppStorage("gridPictureStyle") private var gridPictureStyleRaw = GridPictureStyle.fillEachBox.rawValue
     private var isLoading = true
 
@@ -28,16 +26,6 @@ final class AppViewModel: ObservableObject {
             persistGridAssignments()
         }
     }
-    @Published var showCameraNameInDisplay = true {
-        didSet {
-            showCameraNameInDisplayRaw = showCameraNameInDisplay
-        }
-    }
-    @Published var cameraNameLocation: CameraNameLocation = .topLeft {
-        didSet {
-            cameraNameLocationRaw = cameraNameLocation.rawValue
-        }
-    }
     @Published var gridPictureStyle: GridPictureStyle = .fillEachBox {
         didSet {
             gridPictureStyleRaw = gridPictureStyle.rawValue
@@ -50,8 +38,6 @@ final class AppViewModel: ObservableObject {
     init() {
         loadGridAssignments()
         loadCameras()
-        showCameraNameInDisplay = showCameraNameInDisplayRaw
-        cameraNameLocation = CameraNameLocation(rawValue: cameraNameLocationRaw) ?? .topLeft
         gridPictureStyle = GridPictureStyle(rawValue: gridPictureStyleRaw) ?? .fillEachBox
         isLoading = false
     }
@@ -85,8 +71,6 @@ final class AppViewModel: ObservableObject {
             gridAssignments: gridAssignments.reduce(into: [:]) { result, item in
                 result[item.key.rawValue] = item.value
             },
-            showCameraNameInDisplay: showCameraNameInDisplay,
-            cameraNameLocation: cameraNameLocation,
             gridPictureStyle: gridPictureStyle
         )
         let encoder = JSONEncoder()
@@ -104,8 +88,6 @@ final class AppViewModel: ObservableObject {
                 result[option] = item.value
             }
         }
-        showCameraNameInDisplay = payload.showCameraNameInDisplay
-        cameraNameLocation = payload.cameraNameLocation
         gridPictureStyle = payload.gridPictureStyle
         availability = [:]
         selectedSidebarItem = cameras.first.map { .camera($0.id) }
@@ -125,7 +107,6 @@ final class AppViewModel: ObservableObject {
             cameras.append(camera)
         }
         availability[camera.id] = camera.isEnabled
-        selectedSidebarItem = .camera(camera.id)
         return camera
     }
 
@@ -303,8 +284,6 @@ private struct AppConfigurationPayload: Codable {
     let version: Int
     let cameras: [CameraConfig]
     let gridAssignments: [String: [CameraConfig.ID?]]
-    let showCameraNameInDisplay: Bool
-    let cameraNameLocation: CameraNameLocation
     let gridPictureStyle: GridPictureStyle
 }
 
