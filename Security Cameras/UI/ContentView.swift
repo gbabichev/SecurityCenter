@@ -59,6 +59,8 @@ struct ContentView: View {
                 } else {
                     ForEach(viewModel.cameras) { camera in
                         HStack {
+                            Image(systemName: cameraSidebarIconName(for: camera))
+                                .foregroundStyle(.secondary)
                             Text(camera.displayName)
                                 .foregroundStyle(camera.isEnabled ? .primary : .secondary)
                             Spacer()
@@ -228,5 +230,14 @@ struct ContentView: View {
         newGridColumns = 2
         newGridRows = 2
         showingNewGridSheet = true
+    }
+
+    private func cameraSidebarIconName(for camera: CameraConfig) -> String {
+        switch camera.feedMode {
+        case .snapshotPolling:
+            return "photo"
+        case .rtsp:
+            return "video"
+        }
     }
 }
