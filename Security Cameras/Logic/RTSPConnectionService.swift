@@ -11,13 +11,16 @@ import Network
 enum RTSPConnectionService {
     static func validate(camera: CameraConfig) async throws {
         guard await canReach(camera: camera) else {
-            throw CameraValidationError.transport("Could not reach RTSP service on port 554.")
+            let port = camera.rtspURL?.port ?? 554
+            throw CameraValidationError.transport("Could not reach RTSP service on port \(port).")
         }
     }
 
     static func canReach(camera: CameraConfig) async -> Bool {
-        guard !camera.host.isEmpty else { return false }
-        return await canReach(host: camera.host, port: 554)
+        guard let url = camera.rtspURL,
+              let host = url.host else { return false }
+        let port = UInt16(url.port ?? 554)
+        return await canReach(host: host, port: port)
     }
 
     private static func canReach(host: String, port: UInt16, timeout: TimeInterval = 5) async -> Bool {

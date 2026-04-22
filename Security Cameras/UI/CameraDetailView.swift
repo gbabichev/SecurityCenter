@@ -117,11 +117,16 @@ struct CameraDetailView: View {
     }
 
     private var failureMessage: String {
-        switch camera.feedMode {
-        case .snapshotPolling:
-            "Verify username, password, host, channel, and HTTP or HTTPS setting."
-        case .rtsp:
-            "Verify host, username, password, channel, and that RTSP is enabled on camera."
+        switch camera.kind {
+        case .reolink:
+            switch camera.feedMode {
+            case .snapshotPolling:
+                "Verify username, password, host, channel, and HTTP or HTTPS setting."
+            case .rtsp:
+                "Verify host, username, password, channel, and that RTSP is enabled on camera."
+            }
+        case .genericRTSP:
+            "Verify the RTSP URL and that the stream is reachable."
         }
     }
 

@@ -41,6 +41,11 @@ struct CameraSettingsView: View {
             guard !editorState.isValidating else { return }
             editorState = .idle
         }
+        .onChange(of: draft.kind) { _, kind in
+            if kind == .genericRTSP {
+                draft.feedMode = .rtsp
+            }
+        }
         .onChange(of: viewModel.cameras) { _, cameras in
             if let selectedCameraID, !cameras.contains(where: { $0.id == selectedCameraID }) {
                 resetEditor()
@@ -165,7 +170,7 @@ struct CameraSettingsView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(camera.displayName)
                                         .font(.headline)
-                                    Text(camera.host)
+                                    Text(camera.hostSummary)
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                     Text(camera.connectionSummary)
@@ -220,8 +225,12 @@ struct CameraSettingsView: View {
             subtitle: isEditing ? "Save updates after source validation." : "Camera is saved only after source validation."
         ) {
             VStack(alignment: .leading, spacing: 14) {
+                editorGroup("Camera Type") {
+                    cameraKindField
+                }
+
                 editorGroup("Basics") {
-                    nameAndAddressRow
+                    basicsFields
                     enabledField
                 }
 
@@ -229,20 +238,27 @@ struct CameraSettingsView: View {
                     displayNameField
                 }
 
-                editorGroup("Access") {
-                    credentialsSection
+                if draft.kind == .reolink {
+                    editorGroup("Access") {
+                        credentialsSection
+                    }
                 }
 
                 editorGroup("Connection") {
-                    feedModeField
+                    if draft.kind == .reolink {
+                        feedModeField
 
-                    if draft.isEnabled && draft.feedMode == .snapshotPolling {
-                        protocolField
+                        if draft.isEnabled && draft.feedMode == .snapshotPolling {
+                            protocolField
+                        }
+
+                        streamVariantField
+                    } else {
+                        genericRTSPURLField
+                        muteCameraField
                     }
 
-                    streamVariantField
-
-                    if draft.feedMode == .rtsp {
+                    if draft.kind == .reolink && draft.feedMode == .rtsp {
                         muteCameraField
                     }
 
@@ -309,6 +325,17 @@ struct CameraSettingsView: View {
         }
     }
 
+    @ViewBuilder
+    private var basicsFields: some View {
+        if draft.kind == .reolink {
+            nameAndAddressRow
+        } else {
+            VStack(spacing: 12) {
+                nameField
+            }
+        }
+    }
+
     private var addressField: some View {
         fieldBlock(title: "Address", caption: "IP or host name.") {
             TextField("192.168.1.50", text: $draft.host)
@@ -318,6 +345,22 @@ struct CameraSettingsView: View {
                 .keyboardType(.URL)
 #endif
                 .textFieldStyle(.roundedBorder)
+        }
+    }
+
+    private var cameraKindField: some View {
+        fieldBlock(title: "Type", caption: "Choose which kind of camera connection to add.") {
+            Picker("Type", selection: $draft.kind) {
+                ForEach(CameraKind.allCases) { kind in
+                    Text(kind.title)
+                        .tag(kind)
+                }
+            }
+#if os(iOS)
+            .pickerStyle(.menu)
+#else
+            .pickerStyle(.segmented)
+#endif
         }
     }
 
@@ -487,6 +530,18 @@ struct CameraSettingsView: View {
         }
     }
 
+    private var genericRTSPURLField: some View {
+        fieldBlock(title: "RTSP URL", caption: "Paste the full RTSP stream URL for this camera.") {
+            TextField("rtsp://user:password@192.168.1.50:554/stream", text: $draft.genericRTSPURL)
+#if os(iOS)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.URL)
+#endif
+                .textFieldStyle(.roundedBorder)
+        }
+    }
+
     private var streamVariantField: some View {
         fieldBlock(title: "Stream Variant", caption: streamVariantCaption) {
             Picker("Stream Variant", selection: $draft.streamVariant) {
@@ -526,10 +581,15 @@ struct CameraSettingsView: View {
     }
 
     private var sourcePreviewTitle: String {
-        switch draft.feedMode {
-        case .snapshotPolling:
-            return "Snapshot URL"
-        case .rtsp:
+        switch draft.kind {
+        case .reolink:
+            switch draft.feedMode {
+            case .snapshotPolling:
+                return "Snapshot URL"
+            case .rtsp:
+                return "RTSP URL"
+            }
+        case .genericRTSP:
             return "RTSP URL"
         }
     }
@@ -538,19 +598,29 @@ struct CameraSettingsView: View {
         guard draft.isEnabled else {
             return "Stored source. Camera is disabled, so app will not poll or stream it."
         }
-        switch draft.feedMode {
-        case .snapshotPolling:
-            return "Reolink JPEG endpoint used for polling."
-        case .rtsp:
-            return "RTSP endpoint used for live playback through VLCKit (\(draft.streamVariant.title.lowercased()))."
+        switch draft.kind {
+        case .reolink:
+            switch draft.feedMode {
+            case .snapshotPolling:
+                return "Reolink JPEG endpoint used for polling."
+            case .rtsp:
+                return "RTSP endpoint used for live playback through VLCKit (\(draft.streamVariant.title.lowercased()))."
+            }
+        case .genericRTSP:
+            return "Generic RTSP endpoint used for live playback through VLCKit."
         }
     }
 
     private var sourcePreviewValue: String {
-        switch draft.feedMode {
-        case .snapshotPolling:
-            return draft.formattedSnapshotURL
-        case .rtsp:
+        switch draft.kind {
+        case .reolink:
+            switch draft.feedMode {
+            case .snapshotPolling:
+                return draft.formattedSnapshotURL
+            case .rtsp:
+                return draft.formattedRTSPURL
+            }
+        case .genericRTSP:
             return draft.formattedRTSPURL
         }
     }
@@ -571,7 +641,15 @@ struct CameraSettingsView: View {
     }
 
     private var isPrimaryActionDisabled: Bool {
-        if draft.host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || editorState.isValidating {
+        let isMissingRequiredField: Bool
+        switch draft.kind {
+        case .reolink:
+            isMissingRequiredField = draft.host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .genericRTSP:
+            isMissingRequiredField = draft.genericRTSPURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+
+        if isMissingRequiredField || editorState.isValidating {
             return true
         }
         if isEditing && !hasUnsavedCameraChanges {

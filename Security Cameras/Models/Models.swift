@@ -46,6 +46,22 @@ enum CameraFeedMode: String, CaseIterable, Identifiable, Hashable, Codable {
     }
 }
 
+enum CameraKind: String, CaseIterable, Identifiable, Hashable, Codable {
+    case reolink
+    case genericRTSP
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .reolink:
+            return "Reolink Camera"
+        case .genericRTSP:
+            return "Generic RTSP Stream"
+        }
+    }
+}
+
 enum CameraStreamVariant: String, CaseIterable, Identifiable, Hashable, Codable {
     case main
     case sub
@@ -195,9 +211,11 @@ enum SidebarItem: Hashable {
 struct CameraConfig: Identifiable, Codable, Hashable {
     var id = UUID()
     var name: String
+    var kind: CameraKind = .reolink
     var host: String
     var username: String
     var password: String
+    var genericRTSPURL: String = ""
     var channel: Int
     var useHTTPS: Bool
     var feedMode: CameraFeedMode = .snapshotPolling
@@ -210,9 +228,11 @@ struct CameraConfig: Identifiable, Codable, Hashable {
     init(
         id: UUID = UUID(),
         name: String,
+        kind: CameraKind = .reolink,
         host: String,
         username: String,
         password: String,
+        genericRTSPURL: String = "",
         channel: Int,
         useHTTPS: Bool,
         feedMode: CameraFeedMode = .snapshotPolling,
@@ -224,9 +244,11 @@ struct CameraConfig: Identifiable, Codable, Hashable {
     ) {
         self.id = id
         self.name = name
+        self.kind = kind
         self.host = host
         self.username = username
         self.password = password
+        self.genericRTSPURL = genericRTSPURL
         self.channel = channel
         self.useHTTPS = useHTTPS
         self.feedMode = feedMode
@@ -240,9 +262,11 @@ struct CameraConfig: Identifiable, Codable, Hashable {
     private enum CodingKeys: String, CodingKey {
         case id
         case name
+        case kind
         case host
         case username
         case password
+        case genericRTSPURL
         case channel
         case useHTTPS
         case feedMode
@@ -257,9 +281,11 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         name = try container.decode(String.self, forKey: .name)
+        kind = try container.decodeIfPresent(CameraKind.self, forKey: .kind) ?? .reolink
         host = try container.decode(String.self, forKey: .host)
         username = try container.decode(String.self, forKey: .username)
         password = try container.decode(String.self, forKey: .password)
+        genericRTSPURL = try container.decodeIfPresent(String.self, forKey: .genericRTSPURL) ?? ""
         channel = try container.decode(Int.self, forKey: .channel)
         useHTTPS = try container.decode(Bool.self, forKey: .useHTTPS)
         feedMode = try container.decodeIfPresent(CameraFeedMode.self, forKey: .feedMode) ?? .snapshotPolling
@@ -278,12 +304,14 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         CameraConfig(
             id: id,
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            kind: kind,
             host: host.trimmingCharacters(in: .whitespacesAndNewlines),
             username: username.trimmingCharacters(in: .whitespacesAndNewlines),
             password: password,
+            genericRTSPURL: genericRTSPURL.trimmingCharacters(in: .whitespacesAndNewlines),
             channel: channel,
             useHTTPS: useHTTPS,
-            feedMode: feedMode,
+            feedMode: kind == .genericRTSP ? .rtsp : feedMode,
             isEnabled: isEnabled,
             streamVariant: streamVariant,
             isMuted: isMuted,
@@ -293,6 +321,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
     }
 
     var snapshotURL: URL? {
+        guard kind == .reolink else { return nil }
         let scheme = useHTTPS ? "https" : "http"
         var components = URLComponents()
         components.scheme = scheme
@@ -314,6 +343,14 @@ struct CameraConfig: Identifiable, Codable, Hashable {
     }
 
     var rtspURL: URL? {
+        if kind == .genericRTSP {
+            guard let url = URL(string: genericRTSPURL),
+                  let scheme = url.scheme,
+                  scheme.caseInsensitiveCompare("rtsp") == .orderedSame else {
+                return nil
+            }
+            return url
+        }
         var components = URLComponents()
         components.scheme = "rtsp"
         components.host = host
@@ -325,17 +362,34 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         return components.url
     }
 
+    var hostSummary: String {
+        switch kind {
+        case .reolink:
+            return host
+        case .genericRTSP:
+            return rtspURL?.host ?? genericRTSPURL
+        }
+    }
+
     var connectionSummary: String {
         let prefix = isEnabled ? "" : "Disabled • "
-        switch feedMode {
-        case .snapshotPolling:
-            return "\(prefix)\(useHTTPS ? "HTTPS" : "HTTP") JPG \(streamVariant == .main ? "main" : "sub")"
-        case .rtsp:
-            return "\(prefix)RTSP \(streamVariant == .main ? "main" : "sub")"
+        switch kind {
+        case .reolink:
+            switch feedMode {
+            case .snapshotPolling:
+                return "\(prefix)\(useHTTPS ? "HTTPS" : "HTTP") JPG \(streamVariant == .main ? "main" : "sub")"
+            case .rtsp:
+                return "\(prefix)RTSP \(streamVariant == .main ? "main" : "sub")"
+            }
+        case .genericRTSP:
+            return "\(prefix)Generic RTSP"
         }
     }
 
     var formattedSnapshotURL: String {
+        guard kind == .reolink else {
+            return "Snapshot URL unavailable for generic RTSP streams"
+        }
         guard var components = snapshotURL.flatMap({ URLComponents(url: $0, resolvingAgainstBaseURL: false) }) else {
             return "Invalid camera address"
         }
@@ -355,6 +409,9 @@ struct CameraConfig: Identifiable, Codable, Hashable {
     }
 
     var formattedRTSPURL: String {
+        if kind == .genericRTSP {
+            return rtspURL?.absoluteString ?? "Invalid RTSP URL"
+        }
         guard let host = rtspURL?.host,
               let path = rtspURL?.path else {
             return "Invalid camera address"
@@ -373,9 +430,11 @@ struct CameraConfig: Identifiable, Codable, Hashable {
     static var emptyDraft: CameraConfig {
         CameraConfig(
             name: "",
+            kind: .reolink,
             host: "",
             username: "admin",
             password: "",
+            genericRTSPURL: "",
             channel: 0,
             useHTTPS: false,
             feedMode: .snapshotPolling,

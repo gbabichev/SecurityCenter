@@ -332,19 +332,34 @@ final class AppViewModel: ObservableObject {
     }
 
     private func validateCamera(_ camera: CameraConfig, ignoring ignoredID: CameraConfig.ID?) async throws {
-        guard !camera.host.isEmpty else {
-            throw CameraValidationError.missingHost
+        switch camera.kind {
+        case .reolink:
+            guard !camera.host.isEmpty else {
+                throw CameraValidationError.missingHost
+            }
+        case .genericRTSP:
+            guard camera.rtspURL?.host != nil else {
+                throw CameraValidationError.invalidURL
+            }
         }
+
         guard validationURL(for: camera) != nil else {
             throw CameraValidationError.invalidURL
         }
         guard !cameras.contains(where: { existing in
-            existing.id != ignoredID
-                && existing.id != camera.id
-                && existing.host.caseInsensitiveCompare(camera.host) == .orderedSame
-                && existing.channel == camera.channel
-                && existing.feedMode == camera.feedMode
-                && (camera.feedMode == .rtsp || existing.useHTTPS == camera.useHTTPS)
+            guard existing.id != ignoredID, existing.id != camera.id, existing.kind == camera.kind else {
+                return false
+            }
+
+            switch camera.kind {
+            case .reolink:
+                return existing.host.caseInsensitiveCompare(camera.host) == .orderedSame
+                    && existing.channel == camera.channel
+                    && existing.feedMode == camera.feedMode
+                    && (camera.feedMode == .rtsp || existing.useHTTPS == camera.useHTTPS)
+            case .genericRTSP:
+                return existing.genericRTSPURL.caseInsensitiveCompare(camera.genericRTSPURL) == .orderedSame
+            }
         }) else {
             throw CameraValidationError.duplicateCamera
         }
