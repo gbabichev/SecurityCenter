@@ -62,10 +62,8 @@ struct ContentView: View {
             NavigationStack {
                 if let selectedCamera = viewModel.selectedCamera {
                     CameraDetailView(viewModel: viewModel, camera: selectedCamera)
-                        .ignoresSafeArea()
                 } else if let selectedGrid = viewModel.selectedGridOption {
                     GridDetailView(viewModel: viewModel, option: selectedGrid)
-                        .ignoresSafeArea()
                 } else {
                     ContentUnavailableView(
                         "Select a Camera",
