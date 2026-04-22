@@ -13,6 +13,7 @@ final class AppViewModel: ObservableObject {
     @AppStorage("camerasJSON") private var camerasJSON: String = "[]"
     @AppStorage("gridAssignmentsJSON") private var gridAssignmentsJSON: String = "{}"
     @AppStorage("gridPictureStyle") private var gridPictureStyleRaw = GridPictureStyle.fillEachBox.rawValue
+    @AppStorage("selectedSidebarItem") private var selectedSidebarItemRaw: String = ""
     private var isLoading = true
 
     @Published var cameras: [CameraConfig] = [] {
@@ -32,13 +33,18 @@ final class AppViewModel: ObservableObject {
         }
     }
     @Published var showSettings = false
-    @Published var selectedSidebarItem: SidebarItem?
+    @Published var selectedSidebarItem: SidebarItem? {
+        didSet {
+            persistSelectedSidebarItem()
+        }
+    }
     @Published var availability: [CameraConfig.ID: Bool] = [:]
 
     init() {
         loadGridAssignments()
         loadCameras()
         gridPictureStyle = GridPictureStyle(rawValue: gridPictureStyleRaw) ?? .fillEachBox
+        restoreSelectedSidebarItem()
         isLoading = false
     }
 
@@ -90,7 +96,7 @@ final class AppViewModel: ObservableObject {
         }
         gridPictureStyle = payload.gridPictureStyle
         availability = [:]
-        selectedSidebarItem = cameras.first.map { .camera($0.id) }
+        restoreSelectedSidebarItem()
     }
 
     func validateAndSaveCamera(from draft: CameraConfig, editing existingID: CameraConfig.ID? = nil) async throws -> CameraConfig {
@@ -167,13 +173,57 @@ final class AppViewModel: ObservableObject {
         gridAssignmentsJSON = json
     }
 
+    private func persistSelectedSidebarItem() {
+        guard !isLoading else { return }
+        selectedSidebarItemRaw = encodedSidebarItem(selectedSidebarItem)
+    }
+
+    private func restoreSelectedSidebarItem() {
+        selectedSidebarItem = normalizedSidebarItem(decodedSidebarItem(selectedSidebarItemRaw))
+    }
+
     private func reconcileSelectionAndAvailability() {
         let ids = Set(cameras.map(\.id))
         availability = availability.filter { ids.contains($0.key) }
-        if case let .camera(cameraID) = selectedSidebarItem, !ids.contains(cameraID) {
-            selectedSidebarItem = nil
-        }
+        selectedSidebarItem = normalizedSidebarItem(selectedSidebarItem)
         gridAssignments = normalizedGridAssignments(removing: ids)
+    }
+
+    private func normalizedSidebarItem(_ item: SidebarItem?) -> SidebarItem? {
+        guard let item else { return nil }
+        switch item {
+        case .camera(let cameraID):
+            return cameras.contains(where: { $0.id == cameraID }) ? item : nil
+        case .grid(let option):
+            return GridOption.allCases.contains(option) ? item : nil
+        }
+    }
+
+    private func encodedSidebarItem(_ item: SidebarItem?) -> String {
+        guard let item else { return "" }
+        switch item {
+        case .camera(let cameraID):
+            return "camera:\(cameraID.uuidString)"
+        case .grid(let option):
+            return "grid:\(option.rawValue)"
+        }
+    }
+
+    private func decodedSidebarItem(_ rawValue: String) -> SidebarItem? {
+        guard !rawValue.isEmpty else { return nil }
+        let parts = rawValue.split(separator: ":", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else { return nil }
+
+        switch parts[0] {
+        case "camera":
+            guard let cameraID = UUID(uuidString: parts[1]) else { return nil }
+            return .camera(cameraID)
+        case "grid":
+            guard let option = GridOption(rawValue: parts[1]) else { return nil }
+            return .grid(option)
+        default:
+            return nil
+        }
     }
 
     private func validateCamera(_ camera: CameraConfig, ignoring ignoredID: CameraConfig.ID?) async throws {
