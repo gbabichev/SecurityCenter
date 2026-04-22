@@ -62,18 +62,21 @@ struct ContentView: View {
                             Text(camera.displayName)
                                 .foregroundStyle(camera.isEnabled ? .primary : .secondary)
                             Spacer()
-                            if camera.isEnabled {
-                                AvailabilityIndicator(isAvailable: viewModel.availability[camera.id] ?? false)
-                            } else {
+                            if !camera.isEnabled {
                                 Image(systemName: "pause.circle")
                                     .foregroundStyle(.secondary)
+                            } else if viewModel.isQuietHoursActive {
+                                Image(systemName: "moon.fill")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                AvailabilityIndicator(isAvailable: viewModel.availability[camera.id] ?? false)
                             }
                         }
                         .opacity(camera.isEnabled ? 1 : 0.55)
                         .contentShape(Rectangle())
                         .tag(SidebarItem.camera(camera.id))
                         .background(
-                            AvailabilityProbe(camera: camera) { isAvailable in
+                            AvailabilityProbe(camera: camera, isPaused: viewModel.isQuietHoursActive) { isAvailable in
                                 viewModel.updateAvailability(for: camera.id, isAvailable: isAvailable)
                             }
                         )

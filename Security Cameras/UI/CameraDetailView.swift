@@ -19,7 +19,9 @@ struct CameraDetailView: View {
                     .ignoresSafeArea()
 
                 ZStack(alignment: overlayAlignment) {
-                    if camera.isEnabled {
+                    if viewModel.isQuietHoursActive {
+                        quietHoursView
+                    } else if camera.isEnabled {
                         contentView
                     } else {
                         disabledView
@@ -28,7 +30,7 @@ struct CameraDetailView: View {
                     streamStatusOverlay
                     cameraOverlay
                 }
-                .padding(16)
+                .padding(viewModel.isQuietHoursActive ? 0 : 16)
                 .frame(
                     width: proxy.size.width,
                     height: proxy.size.height,
@@ -38,6 +40,9 @@ struct CameraDetailView: View {
         }
         .onChange(of: camera.feedMode) {
             streamStatus = .loading
+        }
+        .onChange(of: viewModel.isQuietHoursActive) { _, isActive in
+            streamStatus = isActive ? .ok : .loading
         }
         .onChange(of: camera.snapshotURL) {
             streamStatus = .loading
@@ -64,7 +69,7 @@ struct CameraDetailView: View {
 
     @ViewBuilder
     private var streamStatusOverlay: some View {
-        if !camera.isEnabled {
+        if viewModel.isQuietHoursActive || !camera.isEnabled {
             EmptyView()
         } else {
             switch streamStatus {
@@ -96,6 +101,10 @@ struct CameraDetailView: View {
             systemImage: "pause.circle",
             description: Text("Enable this camera in settings to resume polling or streaming.")
         )
+    }
+
+    private var quietHoursView: some View {
+        QuietHoursSaverView(endLabel: viewModel.quietHours.endLabel)
     }
 
     private var loadingTitle: String {
@@ -145,7 +154,7 @@ struct CameraDetailView: View {
 
     @ViewBuilder
     private var cameraOverlay: some View {
-        if camera.showsNameInDisplay {
+        if !viewModel.isQuietHoursActive && camera.showsNameInDisplay {
             Text(camera.displayName)
                 .font(.headline)
                 .foregroundStyle(.white)

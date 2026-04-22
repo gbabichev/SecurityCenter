@@ -12,6 +12,7 @@ import Combine
 final class AppViewModel: ObservableObject {
     private let defaults = UserDefaults.standard
     private var isLoading = true
+    private var quietHoursTimer: AnyCancellable?
 
     private enum StorageKey {
         static let camerasJSON = "camerasJSON"
@@ -19,6 +20,7 @@ final class AppViewModel: ObservableObject {
         static let gridAssignmentsJSON = "gridAssignmentsJSON"
         static let gridPictureStyle = "gridPictureStyle"
         static let selectedSidebarItem = "selectedSidebarItem"
+        static let quietHoursJSON = "quietHoursJSON"
     }
 
     @Published var cameras: [CameraConfig] = [] {
@@ -43,6 +45,12 @@ final class AppViewModel: ObservableObject {
             defaults.set(gridPictureStyle.rawValue, forKey: StorageKey.gridPictureStyle)
         }
     }
+    @Published var quietHours = QuietHoursSchedule() {
+        didSet {
+            persistQuietHours()
+            refreshQuietHoursState()
+        }
+    }
     @Published var showSettings = false
     @Published var selectedSidebarItem: SidebarItem? {
         didSet {
@@ -50,15 +58,23 @@ final class AppViewModel: ObservableObject {
         }
     }
     @Published var availability: [CameraConfig.ID: Bool] = [:]
+    @Published private(set) var isQuietHoursActive = false
 
     init() {
         loadGrids()
         loadGridAssignments()
         loadCameras()
+        loadQuietHours()
         gridPictureStyle = GridPictureStyle(
             rawValue: defaults.string(forKey: StorageKey.gridPictureStyle) ?? GridPictureStyle.fillEachBox.rawValue
         ) ?? .fillEachBox
         restoreSelectedSidebarItem()
+        quietHoursTimer = Timer.publish(every: 30, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.refreshQuietHoursState()
+            }
+        refreshQuietHoursState()
         isLoading = false
     }
 
@@ -92,6 +108,18 @@ final class AppViewModel: ObservableObject {
         grids.removeAll { $0.id == grid.id }
     }
 
+    func updateQuietHours(enabled: Bool) {
+        quietHours.isEnabled = enabled
+    }
+
+    func updateQuietHours(startMinutes: Int) {
+        quietHours.startMinutes = startMinutes
+    }
+
+    func updateQuietHours(endMinutes: Int) {
+        quietHours.endMinutes = endMinutes
+    }
+
     func exportConfigurationData() throws -> Data {
         let payload = AppConfigurationPayload(
             cameras: cameras,
@@ -99,7 +127,8 @@ final class AppViewModel: ObservableObject {
             gridAssignments: gridAssignments.reduce(into: [:]) { result, item in
                 result[item.key.uuidString] = item.value
             },
-            gridPictureStyle: gridPictureStyle
+            gridPictureStyle: gridPictureStyle,
+            quietHours: quietHours
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -115,6 +144,7 @@ final class AppViewModel: ObservableObject {
         grids = importedGridState.grids
         gridAssignments = importedGridState.assignments
         gridPictureStyle = payload.gridPictureStyle
+        quietHours = payload.quietHours ?? QuietHoursSchedule()
         availability = [:]
         restoreSelectedSidebarItem()
     }
@@ -194,6 +224,17 @@ final class AppViewModel: ObservableObject {
         gridAssignments = [:]
     }
 
+    private func loadQuietHours() {
+        let rawValue = defaults.string(forKey: StorageKey.quietHoursJSON) ?? ""
+        guard !rawValue.isEmpty,
+              let data = rawValue.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode(QuietHoursSchedule.self, from: data) else {
+            quietHours = QuietHoursSchedule()
+            return
+        }
+        quietHours = decoded
+    }
+
     private func persistCameras() {
         guard !isLoading else { return }
         guard let data = try? JSONEncoder().encode(cameras),
@@ -229,6 +270,19 @@ final class AppViewModel: ObservableObject {
     private func persistSelectedSidebarItem() {
         guard !isLoading else { return }
         defaults.set(encodedSidebarItem(selectedSidebarItem), forKey: StorageKey.selectedSidebarItem)
+    }
+
+    private func persistQuietHours() {
+        guard !isLoading else { return }
+        guard let data = try? JSONEncoder().encode(quietHours),
+              let json = String(data: data, encoding: .utf8) else {
+            return
+        }
+        defaults.set(json, forKey: StorageKey.quietHoursJSON)
+    }
+
+    private func refreshQuietHoursState(now: Date = Date()) {
+        isQuietHoursActive = quietHours.isActive(at: now)
     }
 
     private func restoreSelectedSidebarItem() {
@@ -450,6 +504,7 @@ private struct AppConfigurationPayload: Codable {
     let grids: [GridLayout]?
     let gridAssignments: [String: [CameraConfig.ID?]]
     let gridPictureStyle: GridPictureStyle
+    let quietHours: QuietHoursSchedule?
 }
 
 private struct LegacyGridAssignmentsPayload: Codable {

@@ -34,19 +34,23 @@ struct GridDetailView: View {
                 Color.black
                     .ignoresSafeArea()
 
-                VStack(spacing: spacing) {
-                    ForEach(0..<layout.rows, id: \.self) { row in
-                        HStack(spacing: spacing) {
-                            ForEach(0..<layout.columns, id: \.self) { column in
-                                let index = row * layout.columns + column
-                                gridCell(for: index)
-                                    .frame(width: cellWidth, height: cellHeight)
+                if viewModel.isQuietHoursActive {
+                    QuietHoursSaverView(endLabel: viewModel.quietHours.endLabel)
+                } else {
+                    VStack(spacing: spacing) {
+                        ForEach(0..<layout.rows, id: \.self) { row in
+                            HStack(spacing: spacing) {
+                                ForEach(0..<layout.columns, id: \.self) { column in
+                                    let index = row * layout.columns + column
+                                    gridCell(for: index)
+                                        .frame(width: cellWidth, height: cellHeight)
+                                }
                             }
                         }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .padding(padding)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                .padding(padding)
             }
         }
         .hideCursorWhenIdle(enabled: !viewModel.showSettings)

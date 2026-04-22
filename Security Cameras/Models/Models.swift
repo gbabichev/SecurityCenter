@@ -203,6 +203,67 @@ enum GridPictureStyle: String, CaseIterable, Identifiable, Hashable, Codable {
     }
 }
 
+struct QuietHoursSchedule: Codable, Hashable {
+    var isEnabled: Bool = false
+    var startMinutes: Int = 22 * 60
+    var endMinutes: Int = 6 * 60
+
+    var normalizedStartMinutes: Int {
+        min(max(startMinutes, 0), 1_439)
+    }
+
+    var normalizedEndMinutes: Int {
+        min(max(endMinutes, 0), 1_439)
+    }
+
+    var startLabel: String {
+        Self.timeFormatter.string(from: date(for: normalizedStartMinutes))
+    }
+
+    var endLabel: String {
+        Self.timeFormatter.string(from: date(for: normalizedEndMinutes))
+    }
+
+    func isActive(at date: Date, calendar: Calendar = .current) -> Bool {
+        guard isEnabled else { return false }
+
+        let minutes = Self.minutesSinceMidnight(for: date, calendar: calendar)
+        let start = normalizedStartMinutes
+        let end = normalizedEndMinutes
+
+        if start == end {
+            return false
+        }
+        if start < end {
+            return minutes >= start && minutes < end
+        }
+        return minutes >= start || minutes < end
+    }
+
+    func date(for minutes: Int, calendar: Calendar = .current) -> Date {
+        var components = calendar.dateComponents([.year, .month, .day], from: Date())
+        components.hour = minutes / 60
+        components.minute = minutes % 60
+        return calendar.date(from: components) ?? Date()
+    }
+
+    static func minutesSinceMidnight(for date: Date, calendar: Calendar = .current) -> Int {
+        let components = calendar.dateComponents([.hour, .minute], from: date)
+        return (components.hour ?? 0) * 60 + (components.minute ?? 0)
+    }
+
+    static func minutes(from date: Date, calendar: Calendar = .current) -> Int {
+        minutesSinceMidnight(for: date, calendar: calendar)
+    }
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter
+    }()
+}
+
 enum SidebarItem: Hashable {
     case camera(CameraConfig.ID)
     case grid(GridLayout.ID)

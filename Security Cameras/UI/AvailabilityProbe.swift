@@ -9,14 +9,17 @@ import SwiftUI
 
 struct AvailabilityProbe: View {
     let camera: CameraConfig
+    let isPaused: Bool
     let onStatusChange: (Bool) -> Void
-    @State private var isRunning = false
 
     var body: some View {
         Color.clear
-            .task {
-                guard !isRunning else { return }
-                isRunning = true
+            .onChange(of: isPaused) { _, paused in
+                if paused {
+                    onStatusChange(false)
+                }
+            }
+            .task(id: ProbeTaskKey(camera: camera, isPaused: isPaused)) {
                 await poll()
             }
     }
@@ -30,7 +33,7 @@ struct AvailabilityProbe: View {
     }
 
     private func checkAvailability() async -> Bool {
-        guard camera.isEnabled else { return false }
+        guard camera.isEnabled, !isPaused else { return false }
 
         switch camera.feedMode {
         case .snapshotPolling:
@@ -53,4 +56,9 @@ struct AvailabilityProbe: View {
             return await RTSPConnectionService.canReach(camera: camera)
         }
     }
+}
+
+private struct ProbeTaskKey: Hashable {
+    let camera: CameraConfig
+    let isPaused: Bool
 }

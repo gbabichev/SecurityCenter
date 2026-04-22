@@ -33,6 +33,8 @@ struct CameraSettingsView: View {
     @State private var pendingLeaveAction: PendingLeaveAction?
     @State private var showingUnsavedChangesAlert = false
     @State private var didCopySourceURL = false
+    @State private var gridPictureStyleDraft: GridPictureStyle = .fillEachBox
+    @State private var quietHoursDraft = QuietHoursSchedule()
 #if os(iOS)
     @State private var showingCameraEditorSheet = false
     @State private var showingImportPicker = false
@@ -68,6 +70,9 @@ struct CameraSettingsView: View {
             footer
         }
         .padding(16)
+        .onAppear {
+            syncAppSettingsDraft()
+        }
         .onChange(of: draft) { _, _ in
             guard !editorState.isValidating else { return }
             editorState = .idle
@@ -92,7 +97,7 @@ struct CameraSettingsView: View {
         } message: {
             Text("You have unsaved changes for this camera. Discard them and continue?")
         }
-        .interactiveDismissDisabled(hasUnsavedCameraChanges)
+        .interactiveDismissDisabled(hasUnsavedCameraChanges || hasUnsavedAppSettingsChanges)
 #if os(macOS)
         .frame(minWidth: 850, minHeight: 620)
 #endif
@@ -115,6 +120,9 @@ struct CameraSettingsView: View {
             footer
         }
         .padding(16)
+        .onAppear {
+            syncAppSettingsDraft()
+        }
         .onChange(of: draft) { _, _ in
             guard !editorState.isValidating else { return }
             editorState = .idle
@@ -157,6 +165,7 @@ struct CameraSettingsView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
+        .interactiveDismissDisabled(hasUnsavedAppSettingsChanges)
     }
     #endif
 
@@ -165,45 +174,53 @@ struct CameraSettingsView: View {
             sectionHeading("App Settings", subtitle: "A few preferences for the whole app.")
 
 #if os(macOS)
-            HStack(alignment: .center, spacing: 16) {
-                Label {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Camera Grid")
-                            .font(.headline)
-                        Text(viewModel.gridPictureStyle.description)
-                            .font(.footnote)
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .center, spacing: 16) {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Camera Grid")
+                                .font(.headline)
+                            Text(gridPictureStyleDraft.description)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "square.grid.2x2")
+                            .font(.title3)
                             .foregroundStyle(.secondary)
                     }
-                } icon: {
-                    Image(systemName: "square.grid.2x2")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                Picker("Camera Grid", selection: $viewModel.gridPictureStyle) {
-                    ForEach(GridPictureStyle.allCases) { style in
-                        Text(style.title)
-                            .tag(style)
+                    Picker("Camera Grid", selection: $gridPictureStyleDraft) {
+                        ForEach(GridPictureStyle.allCases) { style in
+                            Text(style.title)
+                                .tag(style)
+                        }
                     }
+                    .frame(maxWidth: 360)
+                    .pickerStyle(.segmented)
                 }
-                .frame(maxWidth: 360)
-                .pickerStyle(.segmented)
+
+                Divider()
+
+                quietHoursSettingsBlock
             }
 #else
             VStack(alignment: .leading, spacing: 12) {
                 fieldBlock(title: "Camera Grid", caption: "Choose how pictures should look in the grid view.") {
                     optionButtons(
-                        selection: $viewModel.gridPictureStyle,
+                        selection: $gridPictureStyleDraft,
                         options: GridPictureStyle.allCases,
                         columns: 2
                     ) { $0.title }
 
-                    Text(viewModel.gridPictureStyle.description)
+                    Text(gridPictureStyleDraft.description)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+
+                quietHoursSettingsBlock
 
                 fieldBlock(title: "Configuration", caption: "Import or export your app settings and cameras as JSON.") {
                     HStack(spacing: 10) {
@@ -235,6 +252,30 @@ struct CameraSettingsView: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .strokeBorder(.quaternary.opacity(0.75), lineWidth: 1)
         )
+    }
+
+    private var quietHoursSettingsBlock: some View {
+        fieldBlock(title: "Quiet Hours", caption: "Black out the screen and pause all camera traffic during these hours.") {
+            Toggle("Turn on quiet hours", isOn: quietHoursEnabledBinding)
+
+            if quietHoursDraft.isEnabled {
+#if os(macOS)
+                HStack(spacing: 16) {
+                    quietHoursTimeField(title: "Start", selection: quietHoursStartDateBinding)
+                    quietHoursTimeField(title: "End", selection: quietHoursEndDateBinding)
+                }
+#else
+                VStack(spacing: 12) {
+                    quietHoursTimeField(title: "Start", selection: quietHoursStartDateBinding)
+                    quietHoursTimeField(title: "End", selection: quietHoursEndDateBinding)
+                }
+#endif
+            }
+
+            Text(quietHoursStatusText)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
     }
 
     #if os(macOS)
@@ -675,7 +716,7 @@ struct CameraSettingsView: View {
         HStack {
             Spacer()
             Button("Done") {
-                attemptToLeaveEditor(.dismissSheet)
+                attemptToDismissSettingsSheet()
             }
             .buttonStyle(.bordered)
         }
@@ -918,6 +959,10 @@ struct CameraSettingsView: View {
         selectedCameraID != nil
     }
 
+    private var hasUnsavedAppSettingsChanges: Bool {
+        gridPictureStyleDraft != viewModel.gridPictureStyle || quietHoursDraft != viewModel.quietHours
+    }
+
     private var baselineDraft: CameraConfig {
         guard let selectedCameraID else {
             return .emptyDraft
@@ -1010,6 +1055,58 @@ struct CameraSettingsView: View {
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func quietHoursTimeField(title: String, selection: Binding<Date>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(settingTitleFont)
+
+            DatePicker(
+                title,
+                selection: selection,
+                displayedComponents: .hourAndMinute
+            )
+            .labelsHidden()
+#if os(macOS)
+            .datePickerStyle(.field)
+#else
+            .datePickerStyle(.compact)
+#endif
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var quietHoursEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { quietHoursDraft.isEnabled },
+            set: { quietHoursDraft.isEnabled = $0 }
+        )
+    }
+
+    private var quietHoursStartDateBinding: Binding<Date> {
+        Binding(
+            get: { quietHoursDraft.date(for: quietHoursDraft.normalizedStartMinutes) },
+            set: { quietHoursDraft.startMinutes = QuietHoursSchedule.minutes(from: $0) }
+        )
+    }
+
+    private var quietHoursEndDateBinding: Binding<Date> {
+        Binding(
+            get: { quietHoursDraft.date(for: quietHoursDraft.normalizedEndMinutes) },
+            set: { quietHoursDraft.endMinutes = QuietHoursSchedule.minutes(from: $0) }
+        )
+    }
+
+    private var quietHoursStatusText: String {
+        if !quietHoursDraft.isEnabled {
+            return "Quiet hours are off."
+        }
+        let isActive = quietHoursDraft.isActive(at: Date())
+        if isActive {
+            return "Quiet hours are active now. Cameras are paused until \(quietHoursDraft.endLabel)."
+        }
+        return "Runs daily from \(quietHoursDraft.startLabel) to \(quietHoursDraft.endLabel)."
     }
 
     private var sectionTitleFont: Font {
@@ -1113,12 +1210,22 @@ struct CameraSettingsView: View {
         case .resetEditor:
             resetEditor()
         case .dismissSheet:
+            saveAppSettings()
             dismiss()
 #if os(iOS)
         case .dismissEditor:
             showingCameraEditorSheet = false
             resetEditor()
 #endif
+        }
+    }
+
+    private func attemptToDismissSettingsSheet() {
+        if hasUnsavedCameraChanges {
+            pendingLeaveAction = .dismissSheet
+            showingUnsavedChangesAlert = true
+        } else {
+            performLeaveAction(.dismissSheet)
         }
     }
 
@@ -1156,6 +1263,7 @@ struct CameraSettingsView: View {
 
             let data = try Data(contentsOf: url)
             try viewModel.importConfigurationData(data)
+            syncAppSettingsDraft()
         } catch {
             configurationAlert = ConfigurationAlert(title: "Import Failed", message: error.localizedDescription)
         }
@@ -1167,6 +1275,16 @@ struct CameraSettingsView: View {
         draft = .emptyDraft
         editorState = .idle
         isPasswordVisible = false
+    }
+
+    private func saveAppSettings() {
+        viewModel.gridPictureStyle = gridPictureStyleDraft
+        viewModel.quietHours = quietHoursDraft
+    }
+
+    private func syncAppSettingsDraft() {
+        gridPictureStyleDraft = viewModel.gridPictureStyle
+        quietHoursDraft = viewModel.quietHours
     }
 
     private func copySourceURLToClipboard() {
