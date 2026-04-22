@@ -30,13 +30,20 @@ struct ContentView: View {
                         ForEach(viewModel.cameras) { camera in
                             HStack {
                                 Text(camera.displayName)
+                                    .foregroundStyle(camera.isEnabled ? .primary : .secondary)
                                 Spacer()
-                                AvailabilityIndicator(isAvailable: viewModel.availability[camera.id] ?? false)
+                                if camera.isEnabled {
+                                    AvailabilityIndicator(isAvailable: viewModel.availability[camera.id] ?? false)
+                                } else {
+                                    Image(systemName: "pause.circle")
+                                        .foregroundStyle(.secondary)
+                                }
                             }
+                            .opacity(camera.isEnabled ? 1 : 0.55)
                             .contentShape(Rectangle())
                             .tag(SidebarItem.camera(camera.id))
                             .background(
-                                AvailabilityProbe(url: camera.snapshotURL) { isAvailable in
+                                AvailabilityProbe(camera: camera) { isAvailable in
                                     viewModel.updateAvailability(for: camera.id, isAvailable: isAvailable)
                                 }
                             )

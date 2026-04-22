@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct AvailabilityProbe: View {
-    let url: URL?
+    let camera: CameraConfig
     let onStatusChange: (Bool) -> Void
     @State private var isRunning = false
 
@@ -30,20 +30,27 @@ struct AvailabilityProbe: View {
     }
 
     private func checkAvailability() async -> Bool {
-        guard let url else { return false }
-        do {
-            let (data, response) = try await CameraNetworkSession.shared.data(from: url)
-            guard let http = response as? HTTPURLResponse,
-                  (200...299).contains(http.statusCode) else {
+        guard camera.isEnabled else { return false }
+
+        switch camera.feedMode {
+        case .snapshotPolling:
+            guard let url = camera.snapshotURL else { return false }
+            do {
+                let (data, response) = try await CameraNetworkSession.shared.data(from: url)
+                guard let http = response as? HTTPURLResponse,
+                      (200...299).contains(http.statusCode) else {
+                    return false
+                }
+                if let contentType = http.value(forHTTPHeaderField: "Content-Type"),
+                   contentType.localizedCaseInsensitiveContains("image/") {
+                    return true
+                }
+                return data.isJPEG
+            } catch {
                 return false
             }
-            if let contentType = http.value(forHTTPHeaderField: "Content-Type"),
-               contentType.localizedCaseInsensitiveContains("image/") {
-                return true
-            }
-            return data.isJPEG
-        } catch {
-            return false
+        case .rtsp:
+            return await RTSPConnectionService.canReach(camera: camera)
         }
     }
 }

@@ -21,6 +21,56 @@ enum SnapshotStatus {
     case failed
 }
 
+enum CameraFeedMode: String, CaseIterable, Identifiable, Hashable, Codable {
+    case snapshotPolling
+    case rtsp
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .snapshotPolling:
+            return "Reolink JPG"
+        case .rtsp:
+            return "RTSP"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .snapshotPolling:
+            return "JPEG snapshot polling over HTTP or HTTPS."
+        case .rtsp:
+            return "Live RTSP stream through VLCKit."
+        }
+    }
+}
+
+enum CameraStreamVariant: String, CaseIterable, Identifiable, Hashable, Codable {
+    case main
+    case sub
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .main:
+            return "Main Stream"
+        case .sub:
+            return "Substream"
+        }
+    }
+
+    var pathSuffix: String {
+        switch self {
+        case .main:
+            return "main"
+        case .sub:
+            return "sub"
+        }
+    }
+}
+
 enum CameraValidationError: LocalizedError {
     case missingHost
     case invalidURL
@@ -143,6 +193,60 @@ struct CameraConfig: Identifiable, Codable, Hashable {
     var password: String
     var channel: Int
     var useHTTPS: Bool
+    var feedMode: CameraFeedMode = .snapshotPolling
+    var isEnabled: Bool = true
+    var streamVariant: CameraStreamVariant = .main
+
+    init(
+        id: UUID = UUID(),
+        name: String,
+        host: String,
+        username: String,
+        password: String,
+        channel: Int,
+        useHTTPS: Bool,
+        feedMode: CameraFeedMode = .snapshotPolling,
+        isEnabled: Bool = true,
+        streamVariant: CameraStreamVariant = .main
+    ) {
+        self.id = id
+        self.name = name
+        self.host = host
+        self.username = username
+        self.password = password
+        self.channel = channel
+        self.useHTTPS = useHTTPS
+        self.feedMode = feedMode
+        self.isEnabled = isEnabled
+        self.streamVariant = streamVariant
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case host
+        case username
+        case password
+        case channel
+        case useHTTPS
+        case feedMode
+        case isEnabled
+        case streamVariant
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try container.decode(String.self, forKey: .name)
+        host = try container.decode(String.self, forKey: .host)
+        username = try container.decode(String.self, forKey: .username)
+        password = try container.decode(String.self, forKey: .password)
+        channel = try container.decode(Int.self, forKey: .channel)
+        useHTTPS = try container.decode(Bool.self, forKey: .useHTTPS)
+        feedMode = try container.decodeIfPresent(CameraFeedMode.self, forKey: .feedMode) ?? .snapshotPolling
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
+        streamVariant = try container.decodeIfPresent(CameraStreamVariant.self, forKey: .streamVariant) ?? .main
+    }
 
     var displayName: String {
         name.isEmpty ? "Camera" : name
@@ -156,7 +260,10 @@ struct CameraConfig: Identifiable, Codable, Hashable {
             username: username.trimmingCharacters(in: .whitespacesAndNewlines),
             password: password,
             channel: channel,
-            useHTTPS: useHTTPS
+            useHTTPS: useHTTPS,
+            feedMode: feedMode,
+            isEnabled: isEnabled,
+            streamVariant: streamVariant
         )
     }
 
@@ -166,29 +273,67 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         components.scheme = scheme
         components.host = host
         components.path = "/cgi-bin/api.cgi"
-        components.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "cmd", value: "Snap"),
-            URLQueryItem(name: "channel", value: "\(channel)"),
+            URLQueryItem(name: "channel", value: "\(max(channel, 0))"),
+            URLQueryItem(name: "rs", value: id.uuidString.replacingOccurrences(of: "-", with: "")),
             URLQueryItem(name: "user", value: username),
             URLQueryItem(name: "password", value: password)
         ]
+        if streamVariant == .sub {
+            queryItems.append(URLQueryItem(name: "width", value: "640"))
+            queryItems.append(URLQueryItem(name: "height", value: "480"))
+        }
+        components.queryItems = queryItems
+        return components.url
+    }
+
+    var rtspURL: URL? {
+        var components = URLComponents()
+        components.scheme = "rtsp"
+        components.host = host
+        components.port = 554
+        components.user = username
+        components.password = password
+        // Reolink snapshot uses 0-based physical channels, while RTSP preview path is 1-based.
+        components.path = "/Preview_\(String(format: "%02d", max(channel, 0) + 1))_\(streamVariant.pathSuffix)"
         return components.url
     }
 
     var connectionSummary: String {
-        useHTTPS ? "HTTPS" : "HTTP"
+        let prefix = isEnabled ? "" : "Disabled • "
+        switch feedMode {
+        case .snapshotPolling:
+            return "\(prefix)\(useHTTPS ? "HTTPS" : "HTTP") JPG \(streamVariant == .main ? "main" : "sub")"
+        case .rtsp:
+            return "\(prefix)RTSP \(streamVariant == .main ? "main" : "sub")"
+        }
     }
 
     var formattedSnapshotURL: String {
         guard var components = snapshotURL.flatMap({ URLComponents(url: $0, resolvingAgainstBaseURL: false) }) else {
             return "Invalid camera address"
         }
-        components.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "cmd", value: "Snap"),
-            URLQueryItem(name: "channel", value: "\(channel)"),
+            URLQueryItem(name: "channel", value: "\(max(channel, 0))"),
+            URLQueryItem(name: "rs", value: id.uuidString.replacingOccurrences(of: "-", with: "")),
             URLQueryItem(name: "user", value: username),
             URLQueryItem(name: "password", value: password.isEmpty ? "" : "••••••")
         ]
+        if streamVariant == .sub {
+            queryItems.append(URLQueryItem(name: "width", value: "640"))
+            queryItems.append(URLQueryItem(name: "height", value: "480"))
+        }
+        components.queryItems = queryItems
+        return components.string ?? "Invalid camera address"
+    }
+
+    var formattedRTSPURL: String {
+        guard var components = rtspURL.flatMap({ URLComponents(url: $0, resolvingAgainstBaseURL: false) }) else {
+            return "Invalid camera address"
+        }
+        components.password = password.isEmpty ? "" : "••••••"
         return components.string ?? "Invalid camera address"
     }
 
@@ -199,7 +344,10 @@ struct CameraConfig: Identifiable, Codable, Hashable {
             username: "admin",
             password: "",
             channel: 0,
-            useHTTPS: false
+            useHTTPS: false,
+            feedMode: .snapshotPolling,
+            isEnabled: true,
+            streamVariant: .main
         )
     }
 }

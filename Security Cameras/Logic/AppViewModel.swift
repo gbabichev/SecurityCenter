@@ -115,7 +115,7 @@ final class AppViewModel: ObservableObject {
         } else {
             cameras.append(camera)
         }
-        availability[camera.id] = true
+        availability[camera.id] = camera.isEnabled
         selectedSidebarItem = .camera(camera.id)
         return camera
     }
@@ -190,7 +190,7 @@ final class AppViewModel: ObservableObject {
         guard !camera.host.isEmpty else {
             throw CameraValidationError.missingHost
         }
-        guard let url = camera.snapshotURL else {
+        guard validationURL(for: camera) != nil else {
             throw CameraValidationError.invalidURL
         }
         guard !cameras.contains(where: { existing in
@@ -198,9 +198,34 @@ final class AppViewModel: ObservableObject {
                 && existing.id != camera.id
                 && existing.host.caseInsensitiveCompare(camera.host) == .orderedSame
                 && existing.channel == camera.channel
-                && existing.useHTTPS == camera.useHTTPS
+                && existing.feedMode == camera.feedMode
+                && (camera.feedMode == .rtsp || existing.useHTTPS == camera.useHTTPS)
         }) else {
             throw CameraValidationError.duplicateCamera
+        }
+
+        guard camera.isEnabled else { return }
+
+        switch camera.feedMode {
+        case .snapshotPolling:
+            try await validateSnapshotCamera(camera)
+        case .rtsp:
+            try await RTSPConnectionService.validate(camera: camera)
+        }
+    }
+
+    private func validationURL(for camera: CameraConfig) -> URL? {
+        switch camera.feedMode {
+        case .snapshotPolling:
+            camera.snapshotURL
+        case .rtsp:
+            camera.rtspURL
+        }
+    }
+
+    private func validateSnapshotCamera(_ camera: CameraConfig) async throws {
+        guard let url = camera.snapshotURL else {
+            throw CameraValidationError.invalidURL
         }
 
         var request = URLRequest(url: url)

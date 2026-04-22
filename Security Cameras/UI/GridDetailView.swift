@@ -52,7 +52,7 @@ struct GridDetailView: View {
         let camera = viewModel.cameras.first { $0.id == cameraID }
         ZStack {
             if let camera {
-                SnapshotView(url: camera.snapshotURL, scalingMode: .stretch) { _ in }
+                gridContent(for: camera)
             } else {
                 Rectangle()
                     .fill(.black)
@@ -88,6 +88,28 @@ struct GridDetailView: View {
         }
         .popover(isPresented: bindingForSelectionPopover(index: index), arrowEdge: .bottom) {
             selectionPopover(for: index)
+        }
+    }
+
+    @ViewBuilder
+    private func gridContent(for camera: CameraConfig) -> some View {
+        if !camera.isEnabled {
+            Rectangle()
+                .fill(.black)
+                .overlay(
+                    ContentUnavailableView(
+                        "Disabled",
+                        systemImage: "pause.circle",
+                        description: Text("Enable in settings")
+                    )
+                )
+        } else {
+            switch camera.feedMode {
+            case .snapshotPolling:
+                SnapshotView(url: camera.snapshotURL, scalingMode: .stretch) { _ in }
+            case .rtsp:
+                RTSPStreamView(url: camera.rtspURL) { _ in }
+            }
         }
     }
 

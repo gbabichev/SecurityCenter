@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8B9E5E9E2FE8A00100100001 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = 8B9E5E9D2FE8A00100100001 /* VLCKitSPM */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		5E6F6CB12F11C26E0089C377 /* Security Cameras.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Security Cameras.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8B9E5E9E2FE8A00100100001 /* VLCKitSPM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = "Security Cameras";
 			packageProductDependencies = (
+				8B9E5E9D2FE8A00100100001 /* VLCKitSPM */,
 			);
 			productName = "Security Cameras";
 			productReference = 5E6F6CB12F11C26E0089C377 /* Security Cameras.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = 5E6F6CA82F11C26E0089C377;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8B9E5E9C2FE8A00100100001 /* XCRemoteSwiftPackageReference "vlckit-spm" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5E6F6CB22F11C26E0089C377 /* Products */;
 			projectDirPath = "";
@@ -351,6 +360,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		8B9E5E9C2FE8A00100100001 /* XCRemoteSwiftPackageReference "vlckit-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tylerjonesio/vlckit-spm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8B9E5E9D2FE8A00100100001 /* VLCKitSPM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8B9E5E9C2FE8A00100100001 /* XCRemoteSwiftPackageReference "vlckit-spm" */;
+			productName = VLCKitSPM;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5E6F6CA92F11C26E0089C377 /* Project object */;
 }

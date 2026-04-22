@@ -129,7 +129,7 @@ struct CameraSettingsView: View {
     private var editorCard: some View {
         settingsCard(
             title: isEditing ? "Edit Camera" : "Add Camera",
-            subtitle: isEditing ? "Save updates after live validation." : "Camera is saved only after live validation."
+            subtitle: isEditing ? "Save updates after source validation." : "Camera is saved only after source validation."
         ) {
             VStack(alignment: .leading, spacing: 14) {
                 statusCard
@@ -151,7 +151,16 @@ struct CameraSettingsView: View {
 
                 credentialsSection
 
-                protocolField
+                enabledField
+                feedModeField
+
+                if draft.isEnabled && draft.feedMode == .snapshotPolling {
+                    protocolField
+                }
+
+                streamVariantField
+
+                sourcePreviewField
 
                 HStack(spacing: 10) {
                     if isEditing {
@@ -207,7 +216,7 @@ struct CameraSettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(editorState.title)
                     .font(.headline)
-                Text(editorState.message(isEditing: isEditing))
+                Text(editorState.message(isEditing: isEditing, feedMode: draft.feedMode))
                     .foregroundStyle(.secondary)
             }
         }
@@ -269,6 +278,97 @@ struct CameraSettingsView: View {
                 .labelsHidden()
             Text(draft.useHTTPS ? "HTTPS" : "HTTP")
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    private var enabledField: some View {
+        Toggle("Camera enabled", isOn: $draft.isEnabled)
+    }
+
+    private var feedModeField: some View {
+        fieldBlock(title: "Feed Type", caption: "Choose camera source for display and probing.") {
+            Picker("Feed Type", selection: $draft.feedMode) {
+                ForEach(CameraFeedMode.allCases) { mode in
+                    Text(mode.title)
+                        .tag(mode)
+                }
+            }
+#if os(iOS)
+            .pickerStyle(.menu)
+#else
+            .pickerStyle(.segmented)
+#endif
+
+            Text(draft.feedMode.description)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var streamVariantField: some View {
+        fieldBlock(title: "Stream Variant", caption: streamVariantCaption) {
+            Picker("Stream Variant", selection: $draft.streamVariant) {
+                ForEach(CameraStreamVariant.allCases) { variant in
+                    Text(variant.title)
+                        .tag(variant)
+                }
+            }
+#if os(iOS)
+            .pickerStyle(.menu)
+#else
+            .pickerStyle(.segmented)
+#endif
+        }
+    }
+
+    private var streamVariantCaption: String {
+        switch draft.feedMode {
+        case .snapshotPolling:
+            return "Choose mainstream or substream JPEG snapshots."
+        case .rtsp:
+            return "Choose main stream or lower-bandwidth substream."
+        }
+    }
+
+    private var sourcePreviewField: some View {
+        fieldBlock(title: sourcePreviewTitle, caption: sourcePreviewCaption) {
+            Text(sourcePreviewValue)
+                .font(.footnote.monospaced())
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
+    private var sourcePreviewTitle: String {
+        switch draft.feedMode {
+        case .snapshotPolling:
+            return "Snapshot URL"
+        case .rtsp:
+            return "RTSP URL"
+        }
+    }
+
+    private var sourcePreviewCaption: String {
+        guard draft.isEnabled else {
+            return "Stored source. Camera is disabled, so app will not poll or stream it."
+        }
+        switch draft.feedMode {
+        case .snapshotPolling:
+            return "Reolink JPEG endpoint used for polling."
+        case .rtsp:
+            return "RTSP endpoint used for live playback through VLCKit (\(draft.streamVariant.title.lowercased()))."
+        }
+    }
+
+    private var sourcePreviewValue: String {
+        switch draft.feedMode {
+        case .snapshotPolling:
+            return draft.formattedSnapshotURL
+        case .rtsp:
+            return draft.formattedRTSPURL
         }
     }
 
@@ -383,12 +483,22 @@ private enum EditorState {
         }
     }
 
-    func message(isEditing: Bool) -> String {
+    func message(isEditing: Bool, feedMode: CameraFeedMode) -> String {
         switch self {
         case .idle:
-            return isEditing ? "Save changes after validation passes." : "Add camera after validation passes."
+            switch feedMode {
+            case .snapshotPolling:
+                return isEditing ? "Save changes after JPEG snapshot validation passes." : "Add camera after JPEG snapshot validation passes."
+            case .rtsp:
+                return isEditing ? "Save changes after RTSP reachability validation passes." : "Add camera after RTSP reachability validation passes."
+            }
         case .validating:
-            return "Connecting to snapshot endpoint."
+            switch feedMode {
+            case .snapshotPolling:
+                return "Connecting to snapshot endpoint."
+            case .rtsp:
+                return "Connecting to RTSP service."
+            }
         case .success(let message), .failure(let message):
             return message
         }
