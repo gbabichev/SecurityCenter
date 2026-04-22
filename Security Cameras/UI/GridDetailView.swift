@@ -13,7 +13,9 @@ import AppKit
 struct GridDetailView: View {
     @ObservedObject var viewModel: AppViewModel
     let layout: GridLayout
+#if os(iOS)
     @State private var activeSelectionIndex: Int?
+#endif
 
     var body: some View {
         GeometryReader { proxy in
@@ -184,7 +186,9 @@ struct GridDetailView: View {
         var items = viewModel.cameras.map { camera in
             GridSelectionMenuItem(title: camera.displayName) {
                 viewModel.setGridCameraID(layout: layout, index: index, cameraID: camera.id)
+#if os(iOS)
                 activeSelectionIndex = nil
+#endif
             }
         }
 
@@ -192,7 +196,9 @@ struct GridDetailView: View {
             items.append(
                 GridSelectionMenuItem(title: "Clear") {
                     viewModel.setGridCameraID(layout: layout, index: index, cameraID: nil)
+#if os(iOS)
                     activeSelectionIndex = nil
+#endif
                 }
             )
         }
@@ -200,6 +206,7 @@ struct GridDetailView: View {
         return items
     }
 
+    #if os(iOS)
     private func bindingForSelectionPopover(index: Int) -> Binding<Bool> {
         Binding(
             get: { activeSelectionIndex == index },
@@ -236,6 +243,7 @@ struct GridDetailView: View {
         .padding(14)
         .frame(minWidth: 180)
     }
+    #endif
 }
 
 private struct GridSelectionMenuItem: Identifiable {

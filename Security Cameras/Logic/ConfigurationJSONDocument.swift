@@ -5,6 +5,7 @@
 //  Created by Codex on 4/22/26.
 //
 
+#if os(iOS)
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -28,3 +29,4 @@ struct ConfigurationJSONDocument: FileDocument {
         FileWrapper(regularFileWithContents: data)
     }
 }
+#endif

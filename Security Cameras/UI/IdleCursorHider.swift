@@ -163,7 +163,7 @@ extension View {
 }
 #else
 extension View {
-    func hideCursorWhenIdle(enabled: Bool, timeout: TimeInterval = 2) -> some View {
+    func hideCursorWhenIdle(enabled _: Bool, timeout _: TimeInterval = 2) -> some View {
         self
     }
 }

@@ -76,10 +76,6 @@ final class AppViewModel: ObservableObject {
         availability[cameraID] = isAvailable
     }
 
-    func deleteCameras(at offsets: IndexSet) {
-        cameras.remove(atOffsets: offsets)
-    }
-
     func deleteCamera(_ camera: CameraConfig) {
         cameras.removeAll { $0.id == camera.id }
     }
@@ -98,7 +94,6 @@ final class AppViewModel: ObservableObject {
 
     func exportConfigurationData() throws -> Data {
         let payload = AppConfigurationPayload(
-            version: 2,
             cameras: cameras,
             grids: grids,
             gridAssignments: gridAssignments.reduce(into: [:]) { result, item in
@@ -451,7 +446,6 @@ private struct GridAssignmentsPayload: Codable {
 }
 
 private struct AppConfigurationPayload: Codable {
-    let version: Int
     let cameras: [CameraConfig]
     let grids: [GridLayout]?
     let gridAssignments: [String: [CameraConfig.ID?]]

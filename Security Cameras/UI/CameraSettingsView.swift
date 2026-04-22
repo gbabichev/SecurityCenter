@@ -6,9 +6,9 @@
 //
 
 import SwiftUI
-import UniformTypeIdentifiers
 
 #if os(iOS)
+import UniformTypeIdentifiers
 import UIKit
 #else
 import AppKit
@@ -19,7 +19,9 @@ struct CameraSettingsView: View {
         case selectCamera(CameraConfig)
         case resetEditor
         case dismissSheet
+#if os(iOS)
         case dismissEditor
+#endif
     }
 
     @ObservedObject var viewModel: AppViewModel
@@ -30,12 +32,14 @@ struct CameraSettingsView: View {
     @State private var isPasswordVisible = false
     @State private var pendingLeaveAction: PendingLeaveAction?
     @State private var showingUnsavedChangesAlert = false
-    @State private var showingCameraEditorSheet = false
     @State private var didCopySourceURL = false
+#if os(iOS)
+    @State private var showingCameraEditorSheet = false
     @State private var showingImportPicker = false
     @State private var showingExportPicker = false
     @State private var exportDocument = ConfigurationJSONDocument(data: Data())
     @State private var configurationAlert: ConfigurationAlert?
+#endif
 
     var body: some View {
 #if os(macOS)
@@ -45,6 +49,7 @@ struct CameraSettingsView: View {
 #endif
     }
 
+    #if os(macOS)
     private var macBody: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
@@ -92,7 +97,9 @@ struct CameraSettingsView: View {
         .frame(minWidth: 850, minHeight: 620)
 #endif
     }
+    #endif
 
+    #if os(iOS)
     private var iosBody: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
@@ -151,6 +158,7 @@ struct CameraSettingsView: View {
             )
         }
     }
+    #endif
 
     private var appSettingsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -229,6 +237,7 @@ struct CameraSettingsView: View {
         )
     }
 
+    #if os(macOS)
     private var cameraSettingsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeading("Camera Settings", subtitle: cameraSettingsSubtitle)
@@ -251,12 +260,9 @@ struct CameraSettingsView: View {
     }
 
     private var cameraSettingsSubtitle: String {
-#if os(macOS)
         "Pick a camera on the left, then edit on the right."
-#else
-        "Choose a camera to edit, or start a new one."
-#endif
     }
+    #endif
 
     private var header: some View {
         HStack(alignment: .center) {
@@ -280,6 +286,7 @@ struct CameraSettingsView: View {
         }
     }
 
+    #if os(macOS)
     private var camerasCard: some View {
         settingsCard(title: "Cameras", subtitle: "Click camera to edit.") {
             VStack(alignment: .leading, spacing: 8) {
@@ -309,7 +316,12 @@ struct CameraSettingsView: View {
                             .padding(.vertical, 10)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
-                            .background(selectedCameraID == camera.id ? AnyShapeStyle(.thinMaterial) : AnyShapeStyle(.clear), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .background {
+                                if selectedCameraID == camera.id {
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .fill(.thinMaterial)
+                                }
+                            }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .buttonStyle(.plain)
@@ -340,7 +352,9 @@ struct CameraSettingsView: View {
                 .strokeBorder(.quaternary.opacity(0.75), lineWidth: 1)
         )
     }
+    #endif
 
+    #if os(iOS)
     private var cameraPickerCard: some View {
         settingsCard(title: "Cameras", subtitle: "Tap a camera below to edit it.") {
             VStack(alignment: .leading, spacing: 12) {
@@ -454,6 +468,7 @@ struct CameraSettingsView: View {
         }
         .interactiveDismissDisabled(hasUnsavedCameraChanges)
     }
+    #endif
 
     private var editorCard: some View {
         settingsCard(
@@ -1013,6 +1028,7 @@ struct CameraSettingsView: View {
 #endif
     }
 
+    #if os(iOS)
     private func optionButtons<Option: Identifiable & Hashable>(
         selection: Binding<Option>,
         options: [Option],
@@ -1043,6 +1059,7 @@ struct CameraSettingsView: View {
             }
         }
     }
+    #endif
 
     private func saveCamera() {
         let candidate = draft
@@ -1090,17 +1107,22 @@ struct CameraSettingsView: View {
             selectedCameraID = camera.id
             draft = camera
             editorState = .idle
+#if os(iOS)
             showingCameraEditorSheet = true
+#endif
         case .resetEditor:
             resetEditor()
         case .dismissSheet:
             dismiss()
+#if os(iOS)
         case .dismissEditor:
             showingCameraEditorSheet = false
             resetEditor()
+#endif
         }
     }
 
+    #if os(iOS)
     private func beginAddingCamera() {
         resetEditor()
         showingCameraEditorSheet = true
@@ -1111,29 +1133,6 @@ struct CameraSettingsView: View {
         draft = camera
         editorState = .idle
         showingCameraEditorSheet = true
-    }
-
-    private func resetEditor() {
-        selectedCameraID = nil
-        draft = .emptyDraft
-        editorState = .idle
-        isPasswordVisible = false
-    }
-
-    private func copySourceURLToClipboard() {
-#if os(iOS)
-        UIPasteboard.general.string = sourcePreviewValue
-#else
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(sourcePreviewValue, forType: .string)
-#endif
-        didCopySourceURL = true
-        Task {
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            await MainActor.run {
-                didCopySourceURL = false
-            }
-        }
     }
 
     private func exportConfiguration() {
@@ -1161,13 +1160,39 @@ struct CameraSettingsView: View {
             configurationAlert = ConfigurationAlert(title: "Import Failed", message: error.localizedDescription)
         }
     }
+    #endif
+
+    private func resetEditor() {
+        selectedCameraID = nil
+        draft = .emptyDraft
+        editorState = .idle
+        isPasswordVisible = false
+    }
+
+    private func copySourceURLToClipboard() {
+#if os(iOS)
+        UIPasteboard.general.string = sourcePreviewValue
+#else
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(sourcePreviewValue, forType: .string)
+#endif
+        didCopySourceURL = true
+        Task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            await MainActor.run {
+                didCopySourceURL = false
+            }
+        }
+    }
 }
 
+#if os(iOS)
 private struct ConfigurationAlert: Identifiable {
     let id = UUID()
     let title: String
     let message: String
 }
+#endif
 
 private enum EditorState {
     case idle
@@ -1181,52 +1206,4 @@ private enum EditorState {
         }
         return false
     }
-
-    var title: String {
-        switch self {
-        case .idle:
-            return "Ready"
-        case .validating:
-            return "Checking camera"
-        case .success:
-            return "Saved"
-        case .failure:
-            return "Could not connect"
-        }
-    }
-
-    func message(isEditing: Bool, feedMode: CameraFeedMode) -> String {
-        switch self {
-        case .idle:
-            switch feedMode {
-            case .snapshotPolling:
-                return isEditing ? "Save changes after JPEG snapshot validation passes." : "Add camera after JPEG snapshot validation passes."
-            case .rtsp:
-                return isEditing ? "Save changes after RTSP reachability validation passes." : "Add camera after RTSP reachability validation passes."
-            }
-        case .validating:
-            switch feedMode {
-            case .snapshotPolling:
-                return "Connecting to snapshot endpoint."
-            case .rtsp:
-                return "Connecting to RTSP service."
-            }
-        case .success(let message), .failure(let message):
-            return message
-        }
-    }
-
-    var symbolName: String {
-        switch self {
-        case .idle:
-            return "slider.horizontal.3"
-        case .validating:
-            return "dot.radiowaves.left.and.right"
-        case .success:
-            return "checkmark.seal.fill"
-        case .failure:
-            return "xmark.octagon.fill"
-        }
-    }
-
 }
