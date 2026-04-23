@@ -4,6 +4,9 @@
 - Workspace root is `SecurityCenter`, and the Xcode project, target, and app folder are `Security Center`.
 - Native SwiftUI app for macOS + iOS.
 - Main app entry: `Security Center/SecurityCenterApp.swift`.
+- Repo root also contains project docs:
+  - `README.md`
+  - `docs/` static support/privacy/marketing site
 - Root UI uses `NavigationSplitView` with:
   - sidebar camera list
   - sidebar saved grids
@@ -33,15 +36,23 @@
   - grid picture style
   - selected sidebar item
   - quiet hours JSON
+- Default grid is a real persisted `2x2` grid with a stable UUID, not an ephemeral generated grid.
+- `AppViewModel` contains migration logic for older installs that used the implicit default grid, so saved assignments and last-selected grid survive upgrade.
 - Import/export uses the same JSON payload shape as the in-app persisted model.
 
 ## Important Runtime Behavior
 - Reolink JPG:
   - uses `/cgi-bin/api.cgi?cmd=Snap...`
   - substream currently uses width/height fallback query parameters
+  - validation probes the opposite HTTP/HTTPS setting and can surface explicit `Try HTTP instead.` / `Try HTTPS instead.` errors
 - RTSP:
   - rendered by `VLCKitSPM` in `RTSPStreamView.swift`
   - reconnect logic lives inside the VLC coordinator
+  - uses a shared `VLCLibrary`, not a separate libVLC instance per tile
+  - currently prefers stability over minimum latency:
+    - `--rtsp-tcp`
+    - `network-caching=1000`
+    - `live-caching=1000`
 - Availability:
   - sidebar status is driven by `AvailabilityProbe`
   - probing pauses during quiet hours
@@ -59,6 +70,9 @@
 - App settings stay local until `Done`.
 - Camera edits stay local until `Save`.
 - On iOS and macOS, camera editing happens in a separate overlay sheet.
+- Sidebar context menus are part of the main workflow now:
+  - cameras: `Edit`, `Delete`
+  - grids: `Edit Grid`, `Delete`
 
 ## Files That Matter Most
 - `Security Center/Logic/AppViewModel.swift`
@@ -87,19 +101,32 @@
 - Delete confirmation had a double-prompt bug before; current fix defers delete until after dialog state clears.
 - `Camera enabled` is intentionally near the top of the camera editor.
 - `Copy URL` / camera link actions are user-facing utilities; keep the wording plain.
+- In the camera list inside settings, RTSP cameras show an audio-state icon in the subtitle row:
+  - `speaker.wave.2.fill` when not muted
+  - `speaker.slash.fill` when muted
 
 ## Grid Notes
 - Hardcoded grid presets were removed.
 - Default grid is `2x2`.
 - Users create saved grids from the sidebar `+`.
+- Editing a grid reuses the same sheet as new-grid creation, but pre-populates the existing name/rows/columns.
+- Resizing an existing grid preserves assignments where possible, truncates overflow when shrinking, and pads with empty slots when growing.
 - Filled macOS grid cells use double-click to reassign camera.
 - Empty cells use a centered `Select Camera` menu.
+- Grid picture style has 2 modes:
+  - `Keep camera shape`
+    - preserve the original aspect ratio
+    - gaps are allowed
+  - `Match box shape`
+    - stretch non-uniformly to remove gaps
+    - still shows the full frame; it does not crop
 
 ## Platform Notes
 - `SettingsSection.swift` is macOS-only.
 - `IdleCursorHider.swift` matters mainly on macOS.
 - iOS settings include native import/export pickers.
 - iOS sidebar title should be attached to the sidebar column, not the outer split view.
+- macOS local-network usage text is declared in the generated Info.plist build settings, not in a checked-in plist file.
 
 ## Build / Verify
 - Preferred verification is generic destination `xcodebuild`, unsigned.

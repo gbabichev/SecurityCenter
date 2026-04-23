@@ -13,6 +13,20 @@ enum RTSPScalingMode {
     case stretch
 }
 
+private enum RTSPVLCConfiguration {
+    static let sharedLibrary = VLCLibrary(options: [
+        "--rtsp-tcp",
+        "--network-caching=1000",
+        "--live-caching=1000"
+    ])
+
+    static let mediaOptions = [
+        "rtsp-tcp",
+        "network-caching=1000",
+        "live-caching=1000"
+    ]
+}
+
 struct RTSPStreamView: View {
     let url: URL?
     let isMuted: Bool
@@ -131,13 +145,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
 #endif
 
     final class Coordinator: NSObject, VLCMediaPlayerDelegate {
-        private let player = VLCMediaPlayer(options: [
-            "--network-caching=300",
-            "--live-caching=300",
-            "--clock-jitter=0",
-            "--clock-synchro=0",
-            "--rtsp-tcp"
-        ])
+        private let player = VLCMediaPlayer(library: RTSPVLCConfiguration.sharedLibrary)
         private let onStatusChange: (SnapshotStatus) -> Void
         private let onVideoSizeChange: (CGSize) -> Void
         private var currentURL: URL?
@@ -242,9 +250,9 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         }
 
         private func configure(media: VLCMedia) {
-            media.addOption("network-caching=300")
-            media.addOption("live-caching=300")
-            media.addOption("rtsp-tcp")
+            for option in RTSPVLCConfiguration.mediaOptions {
+                media.addOption(option)
+            }
         }
 
         private func applyMute() {
