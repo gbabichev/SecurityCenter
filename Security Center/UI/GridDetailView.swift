@@ -130,36 +130,14 @@ struct GridDetailView: View {
                     scalingMode: viewModel.gridPictureStyle == .showWholePicture ? .fit : .stretch
                 ) { _ in }
             case .rtsp:
-                rtspGridView(for: camera)
+                RTSPStreamView(
+                    url: camera.rtspURL,
+                    isMuted: camera.isMuted,
+                    scalingMode: viewModel.gridPictureStyle == .showWholePicture ? .fit : .stretch
+                ) { _ in }
+                .id("\(camera.id.uuidString)-\(viewModel.gridPictureStyle.rawValue)")
             }
         }
-    }
-
-    @ViewBuilder
-    private func rtspGridView(for camera: CameraConfig) -> some View {
-        GeometryReader { proxy in
-            ZStack {
-                Color.black
-
-                if viewModel.gridPictureStyle == .showWholePicture {
-                    let fittedSize = fittedVideoSize(in: proxy.size)
-                    RTSPStreamView(url: camera.rtspURL, isMuted: camera.isMuted) { _ in }
-                        .frame(width: fittedSize.width, height: fittedSize.height)
-                } else {
-                    RTSPStreamView(url: camera.rtspURL, isMuted: camera.isMuted) { _ in }
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                }
-            }
-            .frame(width: proxy.size.width, height: proxy.size.height)
-            .clipped()
-        }
-    }
-
-    private func fittedVideoSize(in size: CGSize) -> CGSize {
-        let aspectRatio = 16.0 / 9.0
-        let fittedWidth = min(size.width, size.height * aspectRatio)
-        let fittedHeight = min(size.height, size.width / aspectRatio)
-        return CGSize(width: fittedWidth, height: fittedHeight)
     }
 
     private func emptyCellMenu(for index: Int) -> some View {

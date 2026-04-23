@@ -192,18 +192,18 @@ enum GridPictureStyle: String, CaseIterable, Identifiable, Hashable, Codable {
     var title: String {
         switch self {
         case .showWholePicture:
-            return "Show whole picture"
+            return "Keep camera shape"
         case .fillEachBox:
-            return "Fill each box"
+            return "Match box shape"
         }
     }
 
     var description: String {
         switch self {
         case .showWholePicture:
-            return "Keeps the full camera view visible."
+            return "Keeps the camera's original shape, even if gaps appear."
         case .fillEachBox:
-            return "Uses all the space in each box."
+            return "Stretches the camera to match each box."
         }
     }
 }

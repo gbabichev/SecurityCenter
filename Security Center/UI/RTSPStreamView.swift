@@ -8,14 +8,71 @@
 import SwiftUI
 import VLCKitSPM
 
+enum RTSPScalingMode {
+    case fit
+    case stretch
+}
+
 struct RTSPStreamView: View {
     let url: URL?
     let isMuted: Bool
+    var scalingMode: RTSPScalingMode = .fit
     let onStatusChange: (SnapshotStatus) -> Void
+    @State private var videoAspectRatio: CGFloat = 16.0 / 9.0
 
     var body: some View {
-        VLCPlayerContainer(url: url, isMuted: isMuted, onStatusChange: onStatusChange)
+        GeometryReader { proxy in
+            let baseSize = fittedSize(in: proxy.size)
+            let scale = stretchScale(in: proxy.size, baseSize: baseSize)
+
+            ZStack {
+                Color.black
+
+                VLCPlayerContainer(
+                    url: url,
+                    isMuted: isMuted,
+                    onStatusChange: onStatusChange,
+                    onVideoSizeChange: updateVideoAspectRatio
+                )
+                .frame(width: baseSize.width, height: baseSize.height)
+                .scaleEffect(x: scale.width, y: scale.height)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .clipped()
             .background(Color.black)
+        }
+    }
+
+    private func fittedSize(in availableSize: CGSize) -> CGSize {
+        guard availableSize.width > 0, availableSize.height > 0, videoAspectRatio > 0 else {
+            return availableSize
+        }
+
+        let availableAspectRatio = availableSize.width / availableSize.height
+
+        if availableAspectRatio > videoAspectRatio {
+            return CGSize(width: availableSize.height * videoAspectRatio, height: availableSize.height)
+        } else {
+            return CGSize(width: availableSize.width, height: availableSize.width / videoAspectRatio)
+        }
+    }
+
+    private func stretchScale(in availableSize: CGSize, baseSize: CGSize) -> CGSize {
+        guard scalingMode == .stretch,
+              baseSize.width > 0,
+              baseSize.height > 0 else {
+            return CGSize(width: 1, height: 1)
+        }
+
+        return CGSize(
+            width: availableSize.width / baseSize.width,
+            height: availableSize.height / baseSize.height
+        )
+    }
+
+    private func updateVideoAspectRatio(_ videoSize: CGSize) {
+        guard videoSize.width > 0, videoSize.height > 0 else { return }
+        videoAspectRatio = videoSize.width / videoSize.height
     }
 }
 
@@ -24,16 +81,17 @@ private typealias VLCPlatformViewRepresentable = UIViewRepresentable
 private typealias VLCPlatformView = UIView
 #else
 private typealias VLCPlatformViewRepresentable = NSViewRepresentable
-private typealias VLCPlatformView = NSView
+private typealias VLCPlatformView = VLCVideoView
 #endif
 
 private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
     let url: URL?
     let isMuted: Bool
     let onStatusChange: (SnapshotStatus) -> Void
+    let onVideoSizeChange: (CGSize) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onStatusChange: onStatusChange)
+        Coordinator(onStatusChange: onStatusChange, onVideoSizeChange: onVideoSizeChange)
     }
 
 #if os(iOS)
@@ -56,8 +114,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
 #else
     func makeNSView(context: Context) -> VLCPlatformView {
         let view = VLCPlatformView()
-        view.wantsLayer = true
-        view.layer?.backgroundColor = NSColor.black.cgColor
+        view.backColor = .black
         context.coordinator.attach(to: view)
         context.coordinator.update(url: url, isMuted: isMuted)
         return view
@@ -82,20 +139,29 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             "--rtsp-tcp"
         ])
         private let onStatusChange: (SnapshotStatus) -> Void
+        private let onVideoSizeChange: (CGSize) -> Void
         private var currentURL: URL?
         private var currentIsMuted = false
         private var reconnectTask: Task<Void, Never>?
         private var isActive = false
         private var hasShownVideo = false
 
-        init(onStatusChange: @escaping (SnapshotStatus) -> Void) {
+        init(
+            onStatusChange: @escaping (SnapshotStatus) -> Void,
+            onVideoSizeChange: @escaping (CGSize) -> Void
+        ) {
             self.onStatusChange = onStatusChange
+            self.onVideoSizeChange = onVideoSizeChange
             super.init()
             player.delegate = self
         }
 
         func attach(to view: VLCPlatformView) {
+#if os(macOS)
+            player.setVideoView(view)
+#else
             player.drawable = view
+#endif
             isActive = true
             applyMute()
         }
@@ -104,7 +170,6 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             let didURLChange = currentURL != url
             let didMuteChange = currentIsMuted != isMuted
             guard didURLChange || didMuteChange else { return }
-
             currentIsMuted = isMuted
             applyMute()
             guard didURLChange else { return }
@@ -145,6 +210,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
                 reconnectTask?.cancel()
                 reconnectTask = nil
                 hasShownVideo = true
+                publishVideoSizeIfAvailable()
                 publish(.ok)
             case .error, .ended, .stopped:
                 hasShownVideo = false
@@ -183,6 +249,15 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
 
         private func applyMute() {
             player.audio?.isMuted = currentIsMuted
+        }
+
+        private func publishVideoSizeIfAvailable() {
+            let size = player.videoSize
+            guard size.width > 0, size.height > 0 else { return }
+
+            Task { @MainActor in
+                onVideoSizeChange(size)
+            }
         }
 
         private func publish(_ status: SnapshotStatus) {
