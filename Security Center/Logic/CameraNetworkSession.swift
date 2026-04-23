@@ -1,6 +1,6 @@
 //
 //  CameraNetworkSession.swift
-//  Security Cameras
+//  Security Center
 //
 //  Created by George Babichev on 4/21/26.
 //

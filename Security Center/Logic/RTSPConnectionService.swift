@@ -1,6 +1,6 @@
 //
 //  RTSPConnectionService.swift
-//  Security Cameras
+//  Security Center
 //
 //  Created by Codex on 4/21/26.
 //

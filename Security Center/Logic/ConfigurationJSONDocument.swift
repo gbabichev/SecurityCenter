@@ -1,6 +1,6 @@
 //
 //  ConfigurationJSONDocument.swift
-//  Security Cameras
+//  Security Center
 //
 //  Created by Codex on 4/22/26.
 //

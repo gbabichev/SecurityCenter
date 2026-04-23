@@ -11,13 +11,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		5E6F6CB12F11C26E0089C377 /* Security Cameras.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Security Cameras.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E6F6CB12F11C26E0089C377 /* Security Center.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Security Center.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		5E6F6CB32F11C26E0089C377 /* Security Cameras */ = {
+		5E6F6CB32F11C26E0089C377 /* Security Center */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Security Cameras";
+			path = "Security Center";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -37,7 +37,7 @@
 		5E6F6CA82F11C26E0089C377 = {
 			isa = PBXGroup;
 			children = (
-				5E6F6CB32F11C26E0089C377 /* Security Cameras */,
+				5E6F6CB32F11C26E0089C377 /* Security Center */,
 				5E6F6CB22F11C26E0089C377 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -45,7 +45,7 @@
 		5E6F6CB22F11C26E0089C377 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				5E6F6CB12F11C26E0089C377 /* Security Cameras.app */,
+				5E6F6CB12F11C26E0089C377 /* Security Center.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -53,9 +53,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		5E6F6CB02F11C26E0089C377 /* Security Cameras */ = {
+		5E6F6CB02F11C26E0089C377 /* Security Center */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 5E6F6CBC2F11C26F0089C377 /* Build configuration list for PBXNativeTarget "Security Cameras" */;
+			buildConfigurationList = 5E6F6CBC2F11C26F0089C377 /* Build configuration list for PBXNativeTarget "Security Center" */;
 			buildPhases = (
 				5E6F6CAD2F11C26E0089C377 /* Sources */,
 				5E6F6CAE2F11C26E0089C377 /* Frameworks */,
@@ -66,14 +66,14 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				5E6F6CB32F11C26E0089C377 /* Security Cameras */,
+				5E6F6CB32F11C26E0089C377 /* Security Center */,
 			);
-			name = "Security Cameras";
+			name = "Security Center";
 			packageProductDependencies = (
 				8B9E5E9D2FE8A00100100001 /* VLCKitSPM */,
 			);
-			productName = "Security Cameras";
-			productReference = 5E6F6CB12F11C26E0089C377 /* Security Cameras.app */;
+			productName = "Security Center";
+			productReference = 5E6F6CB12F11C26E0089C377 /* Security Center.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -91,7 +91,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 5E6F6CAC2F11C26E0089C377 /* Build configuration list for PBXProject "Security Cameras" */;
+			buildConfigurationList = 5E6F6CAC2F11C26E0089C377 /* Build configuration list for PBXProject "Security Center" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -108,7 +108,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				5E6F6CB02F11C26E0089C377 /* Security Cameras */,
+				5E6F6CB02F11C26E0089C377 /* Security Center */,
 			);
 		};
 /* End PBXProject section */
@@ -282,7 +282,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.georgebabichev.Security-Cameras";
+				PRODUCT_BUNDLE_IDENTIFIER = com.georgebabichev.securitycenter;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -327,7 +327,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.georgebabichev.Security-Cameras";
+				PRODUCT_BUNDLE_IDENTIFIER = com.georgebabichev.securitycenter;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -347,7 +347,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		5E6F6CAC2F11C26E0089C377 /* Build configuration list for PBXProject "Security Cameras" */ = {
+		5E6F6CAC2F11C26E0089C377 /* Build configuration list for PBXProject "Security Center" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				5E6F6CBA2F11C26F0089C377 /* Debug */,
@@ -356,7 +356,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		5E6F6CBC2F11C26F0089C377 /* Build configuration list for PBXNativeTarget "Security Cameras" */ = {
+		5E6F6CBC2F11C26F0089C377 /* Build configuration list for PBXNativeTarget "Security Center" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				5E6F6CBD2F11C26F0089C377 /* Debug */,

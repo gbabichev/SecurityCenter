@@ -1,6 +1,6 @@
 //
 //  CameraSettingsView.swift
-//  Security Cameras
+//  Security Center
 //
 //  Created by George Babichev on 1/9/26.
 //
@@ -158,7 +158,7 @@ struct CameraSettingsView: View {
             isPresented: $showingExportPicker,
             document: exportDocument,
             contentType: .json,
-            defaultFilename: "Security Cameras"
+            defaultFilename: "Security Center"
         ) { result in
             if case .failure(let error) = result {
                 configurationAlert = ConfigurationAlert(title: "Export Failed", message: error.localizedDescription)

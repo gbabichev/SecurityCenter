@@ -1,6 +1,6 @@
 //
-//  Security_CamerasApp.swift
-//  Security Cameras
+//  SecurityCenterApp.swift
+//  Security Center
 //
 //  Created by George Babichev on 1/9/26.
 //
@@ -12,7 +12,7 @@ import UniformTypeIdentifiers
 #endif
 
 @main
-struct Security_CamerasApp: App {
+struct SecurityCenterApp: App {
     @StateObject private var viewModel = AppViewModel()
 
     var body: some Scene {
@@ -39,10 +39,10 @@ struct Security_CamerasApp: App {
 }
 
 #if os(macOS)
-private extension Security_CamerasApp {
+private extension SecurityCenterApp {
     func importConfiguration() {
         let panel = NSOpenPanel()
-        panel.title = "Import Cameras JSON"
+        panel.title = "Import Security Center JSON"
         panel.allowedContentTypes = [.json]
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
@@ -62,9 +62,9 @@ private extension Security_CamerasApp {
 
     func exportConfiguration() {
         let panel = NSSavePanel()
-        panel.title = "Export Cameras JSON"
+        panel.title = "Export Security Center JSON"
         panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "Security Cameras.json"
+        panel.nameFieldStringValue = "Security Center.json"
         panel.canCreateDirectories = true
 
         guard panel.runModal() == .OK, let url = panel.url else {

@@ -1,6 +1,6 @@
 //
 //  GridDetailView.swift
-//  Security Cameras
+//  Security Center
 //
 //  Created by George Babichev on 1/9/26.
 //
