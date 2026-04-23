@@ -108,6 +108,16 @@ final class AppViewModel: ObservableObject {
         grids.removeAll { $0.id == grid.id }
     }
 
+    func duplicateCamera(_ camera: CameraConfig) -> CameraConfig {
+        var copy = camera
+        copy.id = UUID()
+        let trimmedName = copy.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        copy.name = trimmedName.isEmpty ? "Camera Copy" : "\(trimmedName) Copy"
+        cameras.append(copy)
+        availability[copy.id] = copy.isEnabled
+        return copy
+    }
+
     func updateQuietHours(enabled: Bool) {
         quietHours.isEnabled = enabled
     }

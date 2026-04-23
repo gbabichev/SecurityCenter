@@ -132,10 +132,10 @@ struct CameraDetailView: View {
             case .snapshotPolling:
                 "Verify username, password, host, channel, and HTTP or HTTPS setting."
             case .rtsp:
-                "Verify host, username, password, channel, and that RTSP is enabled on camera."
+                "Verify host, username, password, channel, and that live video is enabled on camera."
             }
         case .genericRTSP:
-            "Verify the RTSP URL and that the stream is reachable."
+            "Verify the camera link and that the stream is reachable."
         }
     }
 

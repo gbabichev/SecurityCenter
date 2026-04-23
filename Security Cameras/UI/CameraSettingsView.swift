@@ -17,11 +17,8 @@ import AppKit
 struct CameraSettingsView: View {
     private enum PendingLeaveAction {
         case selectCamera(CameraConfig)
-        case resetEditor
         case dismissSheet
-#if os(iOS)
         case dismissEditor
-#endif
     }
 
     @ObservedObject var viewModel: AppViewModel
@@ -32,11 +29,12 @@ struct CameraSettingsView: View {
     @State private var isPasswordVisible = false
     @State private var pendingLeaveAction: PendingLeaveAction?
     @State private var showingUnsavedChangesAlert = false
+    @State private var showingDeleteCameraConfirmation = false
     @State private var didCopySourceURL = false
     @State private var gridPictureStyleDraft: GridPictureStyle = .fillEachBox
     @State private var quietHoursDraft = QuietHoursSchedule()
-#if os(iOS)
     @State private var showingCameraEditorSheet = false
+#if os(iOS)
     @State private var showingImportPicker = false
     @State private var showingExportPicker = false
     @State private var exportDocument = ConfigurationJSONDocument(data: Data())
@@ -64,60 +62,6 @@ struct CameraSettingsView: View {
                 }
                 .padding(.top, 4)
             }
-
-            cameraActionBar
-
-            footer
-        }
-        .padding(16)
-        .onAppear {
-            syncAppSettingsDraft()
-        }
-        .onChange(of: draft) { _, _ in
-            guard !editorState.isValidating else { return }
-            editorState = .idle
-        }
-        .onChange(of: draft.kind) { _, kind in
-            if kind == .genericRTSP {
-                draft.feedMode = .rtsp
-            }
-        }
-        .onChange(of: viewModel.cameras) { _, cameras in
-            if let selectedCameraID, !cameras.contains(where: { $0.id == selectedCameraID }) {
-                resetEditor()
-            }
-        }
-        .alert("Unsaved Changes", isPresented: $showingUnsavedChangesAlert) {
-            Button("Keep Editing", role: .cancel) {
-                pendingLeaveAction = nil
-            }
-            Button("Discard Changes", role: .destructive) {
-                performPendingLeaveAction()
-            }
-        } message: {
-            Text("You have unsaved changes for this camera. Discard them and continue?")
-        }
-        .interactiveDismissDisabled(hasUnsavedCameraChanges || hasUnsavedAppSettingsChanges)
-#if os(macOS)
-        .frame(minWidth: 850, minHeight: 620)
-#endif
-    }
-    #endif
-
-    #if os(iOS)
-    private var iosBody: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            header
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    appSettingsSection
-                    cameraPickerCard
-                }
-                .padding(.top, 4)
-            }
-
-            footer
         }
         .padding(16)
         .onAppear {
@@ -138,8 +82,70 @@ struct CameraSettingsView: View {
                 showingCameraEditorSheet = false
             }
         }
+        .onChange(of: showingCameraEditorSheet) { _, isPresented in
+            if !isPresented {
+                showingDeleteCameraConfirmation = false
+            }
+        }
         .sheet(isPresented: $showingCameraEditorSheet) {
-            iosCameraEditorSheet
+            cameraEditorSheet
+        }
+        .alert("Unsaved Changes", isPresented: $showingUnsavedChangesAlert) {
+            Button("Keep Editing", role: .cancel) {
+                pendingLeaveAction = nil
+            }
+            Button("Discard Changes", role: .destructive) {
+                performPendingLeaveAction()
+            }
+        } message: {
+            Text("You have unsaved changes for this camera. Discard them and continue?")
+        }
+        .interactiveDismissDisabled(hasUnsavedAppSettingsChanges)
+#if os(macOS)
+        .frame(minWidth: 850, minHeight: 620)
+#endif
+    }
+    #endif
+
+    #if os(iOS)
+    private var iosBody: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            header
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    appSettingsSection
+                    cameraPickerCard
+                }
+                .padding(.top, 4)
+            }
+        }
+        .padding(16)
+        .onAppear {
+            syncAppSettingsDraft()
+        }
+        .onChange(of: draft) { _, _ in
+            guard !editorState.isValidating else { return }
+            editorState = .idle
+        }
+        .onChange(of: draft.kind) { _, kind in
+            if kind == .genericRTSP {
+                draft.feedMode = .rtsp
+            }
+        }
+        .onChange(of: viewModel.cameras) { _, cameras in
+            if let selectedCameraID, !cameras.contains(where: { $0.id == selectedCameraID }) {
+                resetEditor()
+                showingCameraEditorSheet = false
+            }
+        }
+        .onChange(of: showingCameraEditorSheet) { _, isPresented in
+            if !isPresented {
+                showingDeleteCameraConfirmation = false
+            }
+        }
+        .sheet(isPresented: $showingCameraEditorSheet) {
+            cameraEditorSheet
         }
         .fileImporter(
             isPresented: $showingImportPicker,
@@ -175,23 +181,11 @@ struct CameraSettingsView: View {
 
 #if os(macOS)
             VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .center, spacing: 16) {
-                    Label {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Camera Grid")
-                                .font(.headline)
-                            Text(gridPictureStyleDraft.description)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                    } icon: {
-                        Image(systemName: "square.grid.2x2")
-                            .font(.title3)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer(minLength: 0)
-
+                SettingsRow(
+                    "Camera Grid",
+                    systemImage: "square.grid.2x2",
+                    subtitle: gridPictureStyleDraft.description
+                ) {
                     Picker("Camera Grid", selection: $gridPictureStyleDraft) {
                         ForEach(GridPictureStyle.allCases) { style in
                             Text(style.title)
@@ -256,7 +250,19 @@ struct CameraSettingsView: View {
 
     private var quietHoursSettingsBlock: some View {
         fieldBlock(title: "Quiet Hours", caption: "Black out the screen and pause all camera traffic during these hours.") {
+#if os(macOS)
+            SettingsRow(
+                "Turn on quiet hours",
+                systemImage: "moon.fill",
+                subtitle: "Black out the screen and pause all camera traffic."
+            ) {
+                Toggle(isOn: quietHoursEnabledBinding) {
+                }
+                .toggleStyle(.switch)
+            }
+#else
             Toggle("Turn on quiet hours", isOn: quietHoursEnabledBinding)
+#endif
 
             if quietHoursDraft.isEnabled {
 #if os(macOS)
@@ -278,32 +284,16 @@ struct CameraSettingsView: View {
         }
     }
 
-    #if os(macOS)
     private var cameraSettingsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeading("Camera Settings", subtitle: cameraSettingsSubtitle)
-
-#if os(macOS)
-            HStack(alignment: .top, spacing: 14) {
-                camerasCard
-                    .frame(width: 260)
-                Divider()
-                    .padding(.vertical, 4)
-                editorCard
-            }
-#else
-            VStack(spacing: 14) {
-                cameraPickerCard
-                editorCard
-            }
-#endif
+            cameraPickerCard
         }
     }
 
     private var cameraSettingsSubtitle: String {
-        "Pick a camera on the left, then edit on the right."
+        "Pick a camera to edit, or start a new one."
     }
-    #endif
 
     private var header: some View {
         HStack(alignment: .center) {
@@ -316,88 +306,14 @@ struct CameraSettingsView: View {
 
             Spacer()
 
-#if os(macOS)
-            if isEditing {
-                Button("New Camera") {
-                    attemptToLeaveEditor(.resetEditor)
-                }
-                .buttonStyle(.bordered)
+            Button("Done") {
+                attemptToDismissSettingsSheet()
             }
-#endif
+            .buttonStyle(.bordered)
         }
     }
-
-    #if os(macOS)
-    private var camerasCard: some View {
-        settingsCard(title: "Cameras", subtitle: "Click camera to edit.") {
-            VStack(alignment: .leading, spacing: 8) {
-                if viewModel.cameras.isEmpty {
-                    placeholderCard(title: "No cameras yet", message: "Use form to add first camera.")
-                } else {
-                    ForEach(Array(viewModel.cameras.enumerated()), id: \.element.id) { index, camera in
-                        Button {
-                            attemptToLeaveEditor(.selectCamera(camera))
-                        } label: {
-                            HStack(alignment: .top, spacing: 10) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(camera.displayName)
-                                        .font(.headline)
-                                    Text(camera.hostSummary)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                    Text(camera.connectionSummary)
-                                        .font(.caption.weight(.medium))
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                AvailabilityIndicator(isAvailable: viewModel.availability[camera.id] ?? false)
-                                    .padding(.top, 2)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                            .background {
-                                if selectedCameraID == camera.id {
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .fill(.thinMaterial)
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button("Edit") {
-                                attemptToLeaveEditor(.selectCamera(camera))
-                            }
-                            Button("Delete", role: .destructive) {
-                                if selectedCameraID == camera.id {
-                                    resetEditor()
-                                }
-                                viewModel.deleteCamera(camera)
-                            }
-                        }
-
-                        if index < viewModel.cameras.count - 1 {
-                            Divider()
-                                .padding(.vertical, 4)
-                        }
-                    }
-                }
-            }
-        }
-        .padding(18)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(.quaternary.opacity(0.75), lineWidth: 1)
-        )
-    }
-    #endif
-
-    #if os(iOS)
     private var cameraPickerCard: some View {
-        settingsCard(title: "Cameras", subtitle: "Tap a camera below to edit it.") {
+        settingsCard(title: "Cameras", subtitle: cameraPickerSubtitle) {
             VStack(alignment: .leading, spacing: 12) {
                 Button {
                     beginAddingCamera()
@@ -442,7 +358,12 @@ struct CameraSettingsView: View {
                                 }
                                 .padding(12)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .background(
+                                    selectedCameraID == camera.id
+                                        ? AnyShapeStyle(.thinMaterial)
+                                        : AnyShapeStyle(Color.primary.opacity(0.035)),
+                                    in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                )
                             }
                             .buttonStyle(.plain)
                             .contextMenu {
@@ -471,7 +392,15 @@ struct CameraSettingsView: View {
         )
     }
 
-    private var iosCameraEditorSheet: some View {
+    private var cameraPickerSubtitle: String {
+#if os(macOS)
+        "Click a camera below to edit it."
+#else
+        "Tap a camera below to edit it."
+#endif
+    }
+
+    private var cameraEditorSheet: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -507,9 +436,23 @@ struct CameraSettingsView: View {
         } message: {
             Text("You have unsaved changes for this camera. Discard them and continue?")
         }
+        .confirmationDialog(
+            "Delete Camera?",
+            isPresented: $showingDeleteCameraConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Camera", role: .destructive) {
+                deleteCurrentCamera()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently remove the camera from the app.")
+        }
         .interactiveDismissDisabled(hasUnsavedCameraChanges)
+#if os(macOS)
+        .frame(minWidth: 760, minHeight: 620)
+#endif
     }
-    #endif
 
     private var editorCard: some View {
         settingsCard(
@@ -518,39 +461,30 @@ struct CameraSettingsView: View {
         ) {
             VStack(alignment: .leading, spacing: 14) {
                 editorGroup("Camera Type") {
-                    cameraKindField
-                }
-
-                editorGroup("Basics") {
-                    basicsFields
-                    enabledField
-                }
-
-                editorGroup("Display") {
-                    displayNameField
-                }
-
-                if draft.kind == .reolink {
-                    editorGroup("Access") {
-                        credentialsSection
+                    cameraTypePrimaryFields
+                    if draft.kind == .reolink {
+                        cameraTypeEditorFields
                     }
                 }
 
-                editorGroup("Connection") {
+                editorGroup("Basics") {
+                    basicsEditorFields
+                }
+
+                editorGroup("Camera") {
                     if draft.kind == .reolink {
-                        feedModeField
+                        addressField
+                        credentialsSection
 
                         if draft.isEnabled && draft.feedMode == .snapshotPolling {
                             protocolField
                         }
 
-                        streamVariantField
+                        if draft.feedMode == .rtsp {
+                            muteCameraField
+                        }
                     } else {
                         genericRTSPURLField
-                        muteCameraField
-                    }
-
-                    if draft.kind == .reolink && draft.feedMode == .rtsp {
                         muteCameraField
                     }
 
@@ -567,16 +501,16 @@ struct CameraSettingsView: View {
     }
 
     @ViewBuilder
-    private var nameAndAddressRow: some View {
+    private var cameraTypePrimaryFields: some View {
 #if os(macOS)
-        HStack(alignment: .top, spacing: 12) {
-            nameField
-            addressField
+        VStack(spacing: 12) {
+            enabledField
+            cameraKindField
         }
 #else
         VStack(spacing: 12) {
-            nameField
-            addressField
+            enabledField
+            cameraKindField
         }
 #endif
     }
@@ -589,14 +523,18 @@ struct CameraSettingsView: View {
     }
 
     @ViewBuilder
-    private var basicsFields: some View {
-        if draft.kind == .reolink {
-            nameAndAddressRow
-        } else {
-            VStack(spacing: 12) {
-                nameField
-            }
+    private var basicsEditorFields: some View {
+#if os(macOS)
+        HStack(alignment: .top, spacing: 12) {
+            nameField
+            displayNameField
         }
+#else
+        VStack(spacing: 12) {
+            nameField
+            displayNameField
+        }
+#endif
     }
 
     private var addressField: some View {
@@ -612,14 +550,8 @@ struct CameraSettingsView: View {
     }
 
     private var cameraKindField: some View {
-        fieldBlock(title: "Type", caption: "Choose which kind of camera connection to add.") {
-#if os(iOS)
-            optionButtons(
-                selection: $draft.kind,
-                options: CameraKind.allCases,
-                columns: 2
-            ) { $0.title }
-#else
+#if os(macOS)
+        SettingsRow("Type", subtitle: "Choose which kind of camera connection to add.") {
             Picker("Type", selection: $draft.kind) {
                 ForEach(CameraKind.allCases) { kind in
                     Text(kind.title)
@@ -627,13 +559,34 @@ struct CameraSettingsView: View {
                 }
             }
             .pickerStyle(.segmented)
-#endif
+            .frame(maxWidth: 360)
         }
+#else
+        fieldBlock(title: "Type", caption: "Choose which kind of camera connection to add.") {
+            optionButtons(
+                selection: $draft.kind,
+                options: CameraKind.allCases,
+                columns: 2
+            ) { $0.title }
+        }
+#endif
     }
 
     private var displayNameField: some View {
         fieldBlock(title: "Display", caption: "Choose if this camera name appears on pictures, and where.") {
+#if os(macOS)
+            SettingsRow(
+                "Show camera name on picture",
+                systemImage: "character.textbox",
+                subtitle: "Overlay the camera label on the image."
+            ) {
+                Toggle(isOn: $draft.showsNameInDisplay) {
+                }
+                .toggleStyle(.switch)
+            }
+#else
             Toggle("Show camera name on picture", isOn: $draft.showsNameInDisplay)
+#endif
 
             if draft.showsNameInDisplay {
 #if os(iOS)
@@ -643,23 +596,14 @@ struct CameraSettingsView: View {
                     columns: 2
                 ) { $0.title }
 #else
-                HStack(alignment: .center, spacing: 12) {
-                    Text("Position")
-                        .foregroundStyle(.secondary)
-
+                SettingsRow("Position") {
                     Picker("Position", selection: $draft.nameLocation) {
                         ForEach(CameraNameLocation.allCases) { location in
                             Text(location.title)
                                 .tag(location)
                         }
                     }
-#if os(iOS)
                     .pickerStyle(.menu)
-#else
-                    .pickerStyle(.menu)
-#endif
-
-                    Spacer(minLength: 0)
                 }
 #endif
             }
@@ -712,18 +656,34 @@ struct CameraSettingsView: View {
         }
     }
 
-    private var footer: some View {
-        HStack {
-            Spacer()
-            Button("Done") {
-                attemptToDismissSettingsSheet()
-            }
-            .buttonStyle(.bordered)
-        }
-    }
-
     private var cameraActionBar: some View {
         HStack(spacing: 12) {
+            if isEditing {
+                Button(role: .destructive) {
+                    showingDeleteCameraConfirmation = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "trash")
+                        Text("Delete")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
+                }
+                .buttonStyle(.bordered)
+
+                Button(action: copyCamera) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "doc.on.doc")
+                        Text("Copy")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
+                }
+                .buttonStyle(.bordered)
+            }
+
             Button(action: saveCamera) {
                 HStack {
                     if editorState.isValidating {
@@ -801,6 +761,17 @@ struct CameraSettingsView: View {
     }
 
     private var protocolField: some View {
+#if os(macOS)
+        SettingsRow(
+            "Protocol",
+            systemImage: "lock.shield",
+            subtitle: "Use HTTPS instead of HTTP for JPG snapshots."
+        ) {
+            Toggle(isOn: $draft.useHTTPS) {
+            }
+            .toggleStyle(.switch)
+        }
+#else
         HStack(spacing: 12) {
             Text("Protocol")
                 .font(.headline)
@@ -811,38 +782,74 @@ struct CameraSettingsView: View {
             Text(draft.useHTTPS ? "HTTPS" : "HTTP")
                 .foregroundStyle(.secondary)
         }
+#endif
     }
 
     private var enabledField: some View {
+#if os(macOS)
+        SettingsRow(
+            "Camera enabled",
+            systemImage: "power",
+            subtitle: "Allow this camera to appear and connect normally."
+        ) {
+            Toggle("", isOn: $draft.isEnabled)
+                .toggleStyle(.switch)
+        }
+#else
         Toggle("Camera enabled", isOn: $draft.isEnabled)
+#endif
+    }
+
+    @ViewBuilder
+    private var cameraTypeEditorFields: some View {
+#if os(macOS)
+        VStack(spacing: 12) {
+            feedModeField
+            streamVariantField
+        }
+#else
+        VStack(spacing: 12) {
+            feedModeField
+            streamVariantField
+        }
+#endif
     }
 
     private var feedModeField: some View {
-        fieldBlock(title: "Feed Type", caption: "Choose camera source for display and probing.") {
-#if os(iOS)
-            optionButtons(
-                selection: $draft.feedMode,
-                options: CameraFeedMode.allCases,
-                columns: 2
-            ) { $0.title }
-#else
-            Picker("Feed Type", selection: $draft.feedMode) {
-                ForEach(CameraFeedMode.allCases) { mode in
-                    Text(mode.title)
-                        .tag(mode)
+#if os(macOS)
+        VStack(alignment: .leading, spacing: 6) {
+            SettingsRow("Feed Type", subtitle: "Choose camera source for display and probing.") {
+                Picker("Feed Type", selection: $draft.feedMode) {
+                    ForEach(CameraFeedMode.allCases) { mode in
+                        Text(mode.title)
+                            .tag(mode)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 360)
             }
-            .pickerStyle(.segmented)
-#endif
 
             Text(draft.feedMode.description)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+#else
+        fieldBlock(title: "Feed Type", caption: "Choose camera source for display and probing.") {
+            optionButtons(
+                selection: $draft.feedMode,
+                options: CameraFeedMode.allCases,
+                columns: 2
+            ) { $0.title }
+
+            Text(draft.feedMode.description)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+#endif
     }
 
     private var genericRTSPURLField: some View {
-        fieldBlock(title: "RTSP URL", caption: "Paste the full RTSP stream URL for this camera.") {
+        fieldBlock(title: "Camera Link", caption: "Paste the full live video link for this camera.") {
             TextField("rtsp://user:password@192.168.1.50:554/stream", text: $draft.genericRTSPURL)
 #if os(iOS)
                 .textInputAutocapitalization(.never)
@@ -854,14 +861,8 @@ struct CameraSettingsView: View {
     }
 
     private var streamVariantField: some View {
-        fieldBlock(title: "Stream Variant", caption: streamVariantCaption) {
-#if os(iOS)
-            optionButtons(
-                selection: $draft.streamVariant,
-                options: CameraStreamVariant.allCases,
-                columns: 2
-            ) { $0.title }
-#else
+#if os(macOS)
+        SettingsRow("Stream Variant", subtitle: streamVariantCaption) {
             Picker("Stream Variant", selection: $draft.streamVariant) {
                 ForEach(CameraStreamVariant.allCases) { variant in
                     Text(variant.title)
@@ -869,20 +870,41 @@ struct CameraSettingsView: View {
                 }
             }
             .pickerStyle(.segmented)
-#endif
+            .frame(maxWidth: 360)
         }
+#else
+        fieldBlock(title: "Stream Variant", caption: streamVariantCaption) {
+            optionButtons(
+                selection: $draft.streamVariant,
+                options: CameraStreamVariant.allCases,
+                columns: 2
+            ) { $0.title }
+        }
+#endif
     }
 
     private var muteCameraField: some View {
+#if os(macOS)
+        SettingsRow(
+            "Mute Camera",
+            systemImage: "speaker.slash",
+            subtitle: "Turn off audio playback for this stream."
+        ) {
+            Toggle(isOn: $draft.isMuted) {
+            }
+            .toggleStyle(.switch)
+        }
+#else
         Toggle("Mute Camera", isOn: $draft.isMuted)
+#endif
     }
 
     private var streamVariantCaption: String {
         switch draft.feedMode {
         case .snapshotPolling:
-            return "Choose mainstream or substream JPEG snapshots."
+            return "Choose the larger or smaller picture."
         case .rtsp:
-            return "Choose main stream or lower-bandwidth substream."
+            return "Choose the larger or smaller live view."
         }
     }
 
@@ -911,33 +933,25 @@ struct CameraSettingsView: View {
     }
 
     private var sourcePreviewTitle: String {
-        switch draft.kind {
-        case .reolink:
-            switch draft.feedMode {
-            case .snapshotPolling:
-                return "Snapshot URL"
-            case .rtsp:
-                return "RTSP URL"
-            }
-        case .genericRTSP:
-            return "RTSP URL"
-        }
+        "Camera Link"
     }
 
     private var sourcePreviewCaption: String {
         guard draft.isEnabled else {
-            return "Stored source. Camera is disabled, so app will not poll or stream it."
+            return "Saved camera link. This camera is turned off right now."
         }
         switch draft.kind {
         case .reolink:
             switch draft.feedMode {
             case .snapshotPolling:
-                return "Reolink JPEG endpoint used for polling."
+                return "Camera link used for picture updates."
             case .rtsp:
-                return "RTSP endpoint used for live playback through VLCKit (\(draft.streamVariant.title.lowercased()))."
+                return draft.streamVariant == .main
+                    ? "Camera link used for the larger live view."
+                    : "Camera link used for the smaller live view."
             }
         case .genericRTSP:
-            return "Generic RTSP endpoint used for live playback through VLCKit."
+            return "Camera link used for live video."
         }
     }
 
@@ -1058,6 +1072,16 @@ struct CameraSettingsView: View {
     }
 
     private func quietHoursTimeField(title: String, selection: Binding<Date>) -> some View {
+#if os(macOS)
+        SettingsRow(title) {
+            DatePicker(
+                title,
+                selection: selection,
+                displayedComponents: .hourAndMinute
+            )
+            .datePickerStyle(.field)
+        }
+#else
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(settingTitleFont)
@@ -1075,6 +1099,7 @@ struct CameraSettingsView: View {
 #endif
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+#endif
     }
 
     private var quietHoursEnabledBinding: Binding<Bool> {
@@ -1177,6 +1202,27 @@ struct CameraSettingsView: View {
         }
     }
 
+    private func copyCamera() {
+        guard isEditing else { return }
+        let copy = viewModel.duplicateCamera(draft.sanitized)
+        selectedCameraID = copy.id
+        draft = copy
+        editorState = .success("\(copy.displayName) copied.")
+    }
+
+    private func deleteCurrentCamera() {
+        guard let selectedCameraID,
+              let camera = viewModel.cameras.first(where: { $0.id == selectedCameraID }) else {
+            return
+        }
+        showingDeleteCameraConfirmation = false
+        DispatchQueue.main.async {
+            viewModel.deleteCamera(camera)
+            showingCameraEditorSheet = false
+            resetEditor()
+        }
+    }
+
     private func comparableDraft(_ camera: CameraConfig) -> CameraConfig {
         var comparable = camera.sanitized
         comparable.id = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
@@ -1204,19 +1250,13 @@ struct CameraSettingsView: View {
             selectedCameraID = camera.id
             draft = camera
             editorState = .idle
-#if os(iOS)
             showingCameraEditorSheet = true
-#endif
-        case .resetEditor:
-            resetEditor()
         case .dismissSheet:
             saveAppSettings()
             dismiss()
-#if os(iOS)
         case .dismissEditor:
             showingCameraEditorSheet = false
             resetEditor()
-#endif
         }
     }
 
@@ -1229,7 +1269,6 @@ struct CameraSettingsView: View {
         }
     }
 
-    #if os(iOS)
     private func beginAddingCamera() {
         resetEditor()
         showingCameraEditorSheet = true
@@ -1241,6 +1280,8 @@ struct CameraSettingsView: View {
         editorState = .idle
         showingCameraEditorSheet = true
     }
+
+#if os(iOS)
 
     private func exportConfiguration() {
         do {

@@ -39,9 +39,9 @@ enum CameraFeedMode: String, CaseIterable, Identifiable, Hashable, Codable {
     var description: String {
         switch self {
         case .snapshotPolling:
-            return "JPEG snapshot polling over HTTP or HTTPS."
+            return "Refreshes still pictures."
         case .rtsp:
-            return "Live RTSP stream through VLCKit."
+            return "Shows live video."
         }
     }
 }
@@ -449,7 +449,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
 
     var formattedSnapshotURL: String {
         guard kind == .reolink else {
-            return "Snapshot URL unavailable for generic RTSP streams"
+            return "Camera link unavailable for this camera"
         }
         guard var components = snapshotURL.flatMap({ URLComponents(url: $0, resolvingAgainstBaseURL: false) }) else {
             return "Invalid camera address"
@@ -471,7 +471,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
 
     var formattedRTSPURL: String {
         if kind == .genericRTSP {
-            return rtspURL?.absoluteString ?? "Invalid RTSP URL"
+            return rtspURL?.absoluteString ?? "Invalid camera link"
         }
         guard let host = rtspURL?.host,
               let path = rtspURL?.path else {

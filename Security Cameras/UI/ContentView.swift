@@ -41,7 +41,6 @@ struct ContentView: View {
                 }
             }
         }
-        .navigationTitle("Security Cameras")
         .sheet(isPresented: $viewModel.showSettings) {
             CameraSettingsView(viewModel: viewModel)
         }
@@ -112,6 +111,9 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 300)
+#if os(iOS)
+        .navigationTitle("Cameras")
+#endif
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button {
