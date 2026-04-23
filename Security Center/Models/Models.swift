@@ -91,6 +91,7 @@ enum CameraValidationError: LocalizedError {
     case missingHost
     case invalidURL
     case duplicateCamera
+    case protocolMismatch(useHTTPS: Bool)
     case unauthorized
     case unexpectedStatus(Int)
     case invalidResponse
@@ -104,12 +105,14 @@ enum CameraValidationError: LocalizedError {
             return "Camera address is not valid."
         case .duplicateCamera:
             return "Camera with same connection already exists."
+        case .protocolMismatch(let useHTTPS):
+            return useHTTPS ? "Try HTTPS instead." : "Try HTTP instead."
         case .unauthorized:
             return "Camera rejected username or password."
         case .unexpectedStatus(let statusCode):
             return "Camera returned HTTP \(statusCode)."
         case .invalidResponse:
-            return "Camera responded, but not with snapshot image."
+            return "No snapshot image returned."
         case .transport(let message):
             return message
         }

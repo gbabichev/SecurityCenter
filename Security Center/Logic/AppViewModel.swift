@@ -481,39 +481,68 @@ final class AppViewModel: ObservableObject {
     }
 
     private func validateSnapshotCamera(_ camera: CameraConfig) async throws {
+        do {
+            try await performSnapshotValidation(camera: camera, timeout: 8)
+        } catch let error as CameraValidationError {
+            if let suggestedUseHTTPS = await detectWorkingSnapshotProtocol(for: camera),
+               suggestedUseHTTPS != camera.useHTTPS {
+                throw CameraValidationError.protocolMismatch(useHTTPS: suggestedUseHTTPS)
+            }
+            throw error
+        } catch {
+            if let suggestedUseHTTPS = await detectWorkingSnapshotProtocol(for: camera),
+               suggestedUseHTTPS != camera.useHTTPS {
+                throw CameraValidationError.protocolMismatch(useHTTPS: suggestedUseHTTPS)
+            }
+            throw CameraValidationError.transport(error.localizedDescription)
+        }
+    }
+
+    private func performSnapshotValidation(camera: CameraConfig, timeout: TimeInterval) async throws {
         guard let url = camera.snapshotURL else {
             throw CameraValidationError.invalidURL
         }
 
         var request = URLRequest(url: url)
-        request.timeoutInterval = 8
+        request.timeoutInterval = timeout
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("image/*", forHTTPHeaderField: "Accept")
 
+        let (data, response) = try await CameraNetworkSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw CameraValidationError.invalidResponse
+        }
+
+        switch http.statusCode {
+        case 200...299:
+            break
+        case 401, 403:
+            throw CameraValidationError.unauthorized
+        default:
+            throw CameraValidationError.unexpectedStatus(http.statusCode)
+        }
+
+        if let contentType = http.value(forHTTPHeaderField: "Content-Type"),
+           contentType.localizedCaseInsensitiveContains("image/") {
+            return
+        }
+
+        guard data.isJPEG else {
+            throw CameraValidationError.invalidResponse
+        }
+    }
+
+    private func detectWorkingSnapshotProtocol(for camera: CameraConfig) async -> Bool? {
+        guard camera.kind == .reolink else { return nil }
+
+        var alternateCamera = camera
+        alternateCamera.useHTTPS.toggle()
+
         do {
-            let (data, response) = try await CameraNetworkSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                throw CameraValidationError.invalidResponse
-            }
-            switch http.statusCode {
-            case 200...299:
-                break
-            case 401, 403:
-                throw CameraValidationError.unauthorized
-            default:
-                throw CameraValidationError.unexpectedStatus(http.statusCode)
-            }
-            if let contentType = http.value(forHTTPHeaderField: "Content-Type"),
-               contentType.localizedCaseInsensitiveContains("image/") {
-                return
-            }
-            guard data.isJPEG else {
-                throw CameraValidationError.invalidResponse
-            }
-        } catch let error as CameraValidationError {
-            throw error
+            try await performSnapshotValidation(camera: alternateCamera, timeout: 4)
+            return alternateCamera.useHTTPS
         } catch {
-            throw CameraValidationError.transport(error.localizedDescription)
+            return nil
         }
     }
 
