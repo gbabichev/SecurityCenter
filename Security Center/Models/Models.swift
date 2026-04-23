@@ -152,6 +152,8 @@ enum CameraNameLocation: String, CaseIterable, Identifiable, Hashable, Codable {
 }
 
 struct GridLayout: Identifiable, Codable, Hashable {
+    static let defaultGridID = UUID(uuidString: "8E21A9A6-4B46-4A16-B438-C8D0B3AE8E22")!
+
     var id = UUID()
     var name: String = ""
     var columns: Int
@@ -174,7 +176,7 @@ struct GridLayout: Identifiable, Codable, Hashable {
     }
 
     static var defaultGrid: GridLayout {
-        GridLayout(name: "2x2", columns: 2, rows: 2)
+        GridLayout(id: defaultGridID, name: "2x2", columns: 2, rows: 2)
     }
 }
 

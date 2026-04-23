@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Security Center icon</title>
+  <desc id="desc">A warm neutral app icon showing a six-cell camera grid and central lens.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8f2e6"/>
+      <stop offset="100%" stop-color="#d9ccb3"/>
+    </linearGradient>
+    <linearGradient id="lens" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2f6a62"/>
+      <stop offset="100%" stop-color="#1f4a45"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect x="64" y="64" width="384" height="384" rx="88" fill="#fefbf5" opacity="0.84"/>
+  <g fill="#c39a62" opacity="0.9">
+    <rect x="104" y="110" width="92" height="92" rx="22"/>
+    <rect x="210" y="110" width="92" height="92" rx="22"/>
+    <rect x="316" y="110" width="92" height="92" rx="22"/>
+    <rect x="104" y="310" width="92" height="92" rx="22"/>
+    <rect x="210" y="310" width="92" height="92" rx="22"/>
+    <rect x="316" y="310" width="92" height="92" rx="22"/>
+  </g>
+  <circle cx="256" cy="256" r="108" fill="url(#lens)"/>
+  <circle cx="256" cy="256" r="58" fill="#f3f0e8" opacity="0.9"/>
+  <circle cx="278" cy="234" r="18" fill="#ffffff" opacity="0.88"/>
+</svg>

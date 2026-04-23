@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1100" role="img" aria-labelledby="title desc">
+  <title id="title">Settings preview</title>
+  <desc id="desc">A stylized settings sheet with app settings and camera editor rows.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#efe9dc"/>
+      <stop offset="100%" stop-color="#ddd3bf"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="1100" rx="42" fill="url(#bg)"/>
+  <rect x="74" y="64" width="752" height="972" rx="32" fill="#fbf8f2"/>
+  <rect x="110" y="110" width="180" height="24" rx="12" fill="#172123"/>
+  <rect x="686" y="104" width="104" height="40" rx="20" fill="#2f6a62"/>
+  <rect x="124" y="192" width="652" height="274" rx="28" fill="#f2ece0" stroke="#ddcfb8"/>
+  <rect x="152" y="224" width="172" height="20" rx="10" fill="#172123"/>
+  <rect x="152" y="268" width="594" height="64" rx="20" fill="#ffffff"/>
+  <rect x="172" y="290" width="122" height="16" rx="8" fill="#536064"/>
+  <rect x="658" y="282" width="64" height="34" rx="17" fill="#2f6a62"/>
+  <rect x="152" y="352" width="594" height="64" rx="20" fill="#ffffff"/>
+  <rect x="172" y="374" width="106" height="16" rx="8" fill="#536064"/>
+  <rect x="618" y="366" width="104" height="34" rx="17" fill="#c89a58"/>
+  <rect x="124" y="506" width="652" height="442" rx="28" fill="#f5f0e6" stroke="#ddcfb8"/>
+  <rect x="152" y="540" width="194" height="20" rx="10" fill="#172123"/>
+  <g fill="#ffffff">
+    <rect x="152" y="586" width="594" height="68" rx="20"/>
+    <rect x="152" y="670" width="594" height="68" rx="20"/>
+    <rect x="152" y="754" width="594" height="68" rx="20"/>
+  </g>
+  <g fill="#536064">
+    <rect x="174" y="610" width="146" height="16" rx="8"/>
+    <rect x="174" y="694" width="130" height="16" rx="8"/>
+    <rect x="174" y="778" width="166" height="16" rx="8"/>
+  </g>
+  <g fill="#d8c6a6">
+    <rect x="612" y="603" width="110" height="34" rx="17"/>
+    <rect x="602" y="687" width="120" height="34" rx="17"/>
+    <rect x="624" y="771" width="98" height="34" rx="17"/>
+  </g>
+  <rect x="124" y="970" width="312" height="44" rx="22" fill="#eee4d1"/>
+  <rect x="464" y="970" width="312" height="44" rx="22" fill="#986a34"/>
+</svg>

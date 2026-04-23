@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Security Center</title>
+  <meta
+    name="description"
+    content="Security Center is a native macOS and iOS camera monitor for Reolink JPG feeds and RTSP streams, with saved grids, quiet hours, local JSON export, and simple camera management."
+  >
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3f0e8">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f1719">
+  <link rel="icon" type="image/svg+xml" href="icon-light.svg">
+  <link rel="apple-touch-icon" href="icon-light.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body class="product-page">
+  <div class="page-shell">
+    <header class="hero">
+      <nav class="topbar" aria-label="Primary">
+        <a class="brand" href="#top" aria-label="Security Center home">
+          <picture class="brand-mark">
+            <source srcset="icon-dark.svg" media="(prefers-color-scheme: dark)">
+            <source srcset="icon-light.svg" media="(prefers-color-scheme: light)">
+            <img src="icon-light.svg" alt="" width="56" height="56">
+          </picture>
+          <span>Security Center</span>
+        </a>
+        <div class="nav-links">
+          <a href="#features">Features</a>
+          <a href="Support.html">Support</a>
+          <a href="PrivacyPolicy.html">Privacy</a>
+        </div>
+      </nav>
+
+      <section class="hero-grid" id="top">
+        <div class="hero-copy reveal">
+          <p class="eyebrow">Camera Monitoring for macOS and iOS</p>
+          <h1>See every feed. Keep the setup sane.</h1>
+          <p class="lede">
+            Security Center brings Reolink snapshot feeds and RTSP streams into one native app,
+            with saved grids, quiet hours, local import and export, and settings that stay understandable.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#features">Explore Features</a>
+            <a class="button button-secondary" href="Support.html">Open Support</a>
+            <a class="button button-tertiary" href="PrivacyPolicy.html">Read Privacy</a>
+          </div>
+          <ul class="hero-points" aria-label="Highlights">
+            <li>Reolink JPG and RTSP in one app, plus generic RTSP support</li>
+            <li>Saved grids, sidebar availability, and per-camera settings</li>
+            <li>Quiet hours can black out the screen and pause camera traffic</li>
+          </ul>
+        </div>
+
+        <div class="hero-visual reveal" aria-label="Security Center previews">
+          <div class="screen-stack">
+            <figure class="screen-card screen-main">
+              <img src="preview-grid.svg" alt="Saved camera grid preview" loading="eager">
+            </figure>
+            <figure class="screen-card screen-side">
+              <img src="preview-camera.svg" alt="Single camera detail preview" loading="lazy">
+            </figure>
+            <figure class="screen-card screen-detail">
+              <img src="preview-settings.svg" alt="Settings and camera editor preview" loading="lazy">
+            </figure>
+          </div>
+        </div>
+      </section>
+    </header>
+
+    <main>
+      <section class="summary-band reveal">
+        <p>
+          Built for people who want a direct, local way to monitor cameras without turning setup and day-to-day use into a maintenance project.
+        </p>
+      </section>
+
+      <section class="section" id="features">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Features</p>
+          <h2>Single feeds, saved grids, and camera controls that match the job.</h2>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card reveal">
+            <h3>Two camera types</h3>
+            <p>Use dedicated Reolink camera setup or add a full generic RTSP link for other stream sources.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <h3>Two feed modes</h3>
+            <p>Reolink cameras can use still-image polling or RTSP live video, while generic streams use RTSP directly.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <h3>Saved grids</h3>
+            <p>Create named layouts, assign cameras to cells, and switch between single-camera and multi-camera views from the sidebar.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <h3>Availability at a glance</h3>
+            <p>The sidebar shows camera status, pauses checks during quiet hours, and keeps disabled cameras visually distinct.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <h3>Quiet hours</h3>
+            <p>Black out the screen, pause polling and streaming, and let the app go still until your chosen end time.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <h3>Plain camera editing</h3>
+            <p>Add, edit, copy, disable, mute, and validate cameras in a separate editor sheet with local-save behavior on both platforms.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <h3>Local JSON import and export</h3>
+            <p>Move your configuration around using the same JSON shape the app uses for persisted state.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <h3>macOS and iOS</h3>
+            <p>The app shares one SwiftUI codebase while keeping settings flows tuned for desktop and touch layouts.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <h3>Local-first setup</h3>
+            <p>Camera settings are stored on-device, and camera traffic goes directly to the endpoints you configure.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section spotlight reveal">
+        <div class="spotlight-copy">
+          <p class="eyebrow">What It Covers</p>
+          <h2>Made for mixed camera setups.</h2>
+          <p>
+            Security Center is useful when some cameras are easiest to read as quick JPG refreshes,
+            others need RTSP live video, and you still want one place to manage names, layouts, and availability.
+          </p>
+        </div>
+        <div class="spotlight-panel">
+          <div class="spotlight-row">
+            <span class="metric-label">Camera kinds</span>
+            <strong>Reolink + Generic RTSP</strong>
+          </div>
+          <div class="spotlight-row">
+            <span class="metric-label">Feed modes</span>
+            <strong>JPG polling + RTSP</strong>
+          </div>
+          <div class="spotlight-row">
+            <span class="metric-label">Platforms</span>
+            <strong>macOS + iOS</strong>
+          </div>
+          <div class="spotlight-row">
+            <span class="metric-label">Config portability</span>
+            <strong>JSON import and export</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="section closing reveal">
+        <div>
+          <p class="eyebrow">More</p>
+          <h2>Support and privacy are part of the project, not an afterthought.</h2>
+          <p>
+            The docs site covers the public-facing overview, while support and privacy pages document how the app behaves,
+            what it stores locally, and how camera network traffic is used.
+          </p>
+        </div>
+        <div class="closing-actions">
+          <a class="button button-primary" href="Support.html">Open Support</a>
+          <a class="button button-secondary" href="PrivacyPolicy.html">Read Privacy Policy</a>
+          <a class="button button-tertiary" href="../README.md">Open README</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>&copy; <span data-current-year>2026</span> George Babichev. Built as a static site for the Security Center project.</p>
+    </footer>
+  </div>
+
+  <script src="site.js"></script>
+</body>
+</html>

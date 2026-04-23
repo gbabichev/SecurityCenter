@@ -23,6 +23,10 @@ final class AppViewModel: ObservableObject {
         static let quietHoursJSON = "quietHoursJSON"
     }
 
+    private var usesImplicitDefaultGrid: Bool {
+        (defaults.string(forKey: StorageKey.gridsJSON) ?? "").isEmpty
+    }
+
     @Published var cameras: [CameraConfig] = [] {
         didSet {
             persistCameras()
@@ -101,6 +105,26 @@ final class AppViewModel: ObservableObject {
         grids.append(grid)
         selectedSidebarItem = .grid(grid.id)
         return grid
+    }
+
+    func updateGrid(_ grid: GridLayout, name: String, columns: Int, rows: Int) -> GridLayout {
+        let updatedGrid = GridLayout(id: grid.id, name: name, columns: columns, rows: rows)
+        guard let index = grids.firstIndex(where: { $0.id == grid.id }) else {
+            return updatedGrid
+        }
+
+        grids[index] = updatedGrid
+
+        var assignments = gridAssignments[grid.id] ?? []
+        let targetCount = updatedGrid.maxItems
+        if assignments.count < targetCount {
+            assignments.append(contentsOf: Array(repeating: nil, count: targetCount - assignments.count))
+        } else if assignments.count > targetCount {
+            assignments = Array(assignments.prefix(targetCount))
+        }
+        gridAssignments[grid.id] = assignments
+        selectedSidebarItem = .grid(updatedGrid.id)
+        return updatedGrid
     }
 
     func deleteGrid(_ grid: GridLayout) {
@@ -222,6 +246,12 @@ final class AppViewModel: ObservableObject {
                     assignments[gridID] = value
                 }
             }
+            if usesImplicitDefaultGrid,
+               assignments[GridLayout.defaultGridID] == nil,
+               let legacyDefaultAssignments = assignments.first?.value,
+               assignments.count == 1 {
+                assignments = [GridLayout.defaultGridID: legacyDefaultAssignments]
+            }
             gridAssignments = assignments
             return
         }
@@ -313,7 +343,15 @@ final class AppViewModel: ObservableObject {
         case .camera(let cameraID):
             return cameras.contains(where: { $0.id == cameraID }) ? item : nil
         case .grid(let gridID):
-            return grids.contains(where: { $0.id == gridID }) ? item : nil
+            if grids.contains(where: { $0.id == gridID }) {
+                return item
+            }
+            if usesImplicitDefaultGrid,
+               grids.count == 1,
+               grids.first?.id == GridLayout.defaultGridID {
+                return .grid(GridLayout.defaultGridID)
+            }
+            return nil
         }
     }
 

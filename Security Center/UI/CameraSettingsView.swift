@@ -341,10 +341,19 @@ struct CameraSettingsView: View {
                                             .font(.subheadline)
                                             .foregroundStyle(.secondary)
                                             .lineLimit(1)
-                                        Text(camera.connectionSummary)
-                                            .font(.caption.weight(.medium))
-                                            .foregroundStyle(.secondary)
-                                            .lineLimit(1)
+                                        HStack(spacing: 6) {
+                                            Text(camera.connectionSummary)
+                                                .font(.caption.weight(.medium))
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+
+                                            if camera.feedMode == .rtsp {
+                                                Image(systemName: camera.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                                                    .font(.caption.weight(.semibold))
+                                                    .foregroundStyle(.secondary)
+                                                    .accessibilityLabel(camera.isMuted ? "Muted" : "Audio enabled")
+                                            }
+                                        }
                                     }
 
                                     Spacer(minLength: 0)

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Security Center Privacy Policy</title>
+  <meta
+    name="description"
+    content="Privacy policy for Security Center, including local storage details, camera network traffic behavior, and what the app does not collect."
+  >
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3f0e8">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f1719">
+  <link rel="icon" type="image/svg+xml" href="icon-light.svg">
+  <link rel="apple-touch-icon" href="icon-light.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body class="info-page">
+  <div class="info-shell">
+    <nav class="topbar" aria-label="Primary">
+      <a class="brand" href="index.html" aria-label="Security Center home">
+        <picture class="brand-mark">
+          <source srcset="icon-dark.svg" media="(prefers-color-scheme: dark)">
+          <source srcset="icon-light.svg" media="(prefers-color-scheme: light)">
+          <img src="icon-light.svg" alt="" width="56" height="56">
+        </picture>
+        <span>Security Center</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html#features">Features</a>
+        <a href="Support.html">Support</a>
+      </div>
+    </nav>
+
+    <header class="info-header reveal">
+      <a class="back-link" href="index.html">&larr; Back to Security Center</a>
+      <p class="eyebrow">Privacy Policy</p>
+      <h1>Your camera setup stays under your control.</h1>
+      <p>
+        Security Center is designed to store its configuration on-device and communicate directly with the camera endpoints you configure.
+        It is not a cloud relay service and does not require an account to work.
+      </p>
+      <p class="meta-note">Last updated: April 23, 2026</p>
+    </header>
+
+    <main class="policy-shell">
+      <section class="policy-card reveal">
+        <h2>Core Principles</h2>
+        <ul>
+          <li><strong>Local configuration:</strong> Camera settings, saved grids, and quiet-hours settings are stored on your device.</li>
+          <li><strong>Direct camera traffic:</strong> Snapshot polling, RTSP streaming, and availability checks go directly to the cameras or RTSP endpoints you configured.</li>
+          <li><strong>No account system:</strong> The app does not require a login to use your local camera setup.</li>
+        </ul>
+      </section>
+
+      <section class="policy-card reveal">
+        <h2>What Security Center Stores</h2>
+        <p>Security Center stores app state locally in UserDefaults, including:</p>
+        <ul>
+          <li>Camera names and connection details.</li>
+          <li>Usernames and passwords entered for camera access.</li>
+          <li>Saved grid layouts and grid assignments.</li>
+          <li>Grid picture style preferences.</li>
+          <li>The selected sidebar item.</li>
+          <li>Quiet-hours settings.</li>
+        </ul>
+      </section>
+
+      <section class="policy-card reveal">
+        <h2>Network Use</h2>
+        <p>
+          The app may connect over HTTP, HTTPS, or RTSP depending on the camera type and feed mode you configured.
+          These connections are used to fetch Reolink snapshot images, open live RTSP streams, and probe whether a camera is reachable.
+        </p>
+        <p>
+          During quiet hours, those camera requests are intentionally paused.
+        </p>
+      </section>
+
+      <section class="policy-card reveal">
+        <h2>Import and Export</h2>
+        <p>
+          If you export your configuration, the generated JSON file contains the same app model used for local persistence.
+          If you share or store that file elsewhere, that is your action and outside the app's control.
+        </p>
+      </section>
+
+      <section class="policy-card reveal">
+        <h2>What Security Center Does Not Do</h2>
+        <ul>
+          <li>It does not require cloud synchronization to function.</li>
+          <li>It does not use ads or third-party ad SDKs.</li>
+          <li>It does not maintain a hosted service for your camera feeds.</li>
+          <li>It does not require an account wall between you and your cameras.</li>
+        </ul>
+      </section>
+
+      <section class="policy-card reveal">
+        <h2>Children's Privacy</h2>
+        <p>Security Center is not designed to collect personal information from children.</p>
+      </section>
+
+      <section class="policy-card reveal">
+        <h2>Changes to This Policy</h2>
+        <p>If this policy changes in a material way, the update date on this page will be changed and the revised policy will be published with the project documentation.</p>
+      </section>
+
+      <section class="policy-card reveal">
+        <h2>Contact</h2>
+        <p>Questions about privacy can be sent to <a href="mailto:george@babichevit.com">george@babichevit.com</a>.</p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>&copy; <span data-current-year>2026</span> George Babichev.</p>
+    </footer>
+  </div>
+
+  <script src="site.js"></script>
+</body>
+</html>

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Security Center Support</title>
+  <meta
+    name="description"
+    content="Support information for Security Center, including contact details, common questions, troubleshooting guidance, and platform compatibility."
+  >
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3f0e8">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f1719">
+  <link rel="icon" type="image/svg+xml" href="icon-light.svg">
+  <link rel="apple-touch-icon" href="icon-light.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body class="info-page">
+  <div class="info-shell">
+    <nav class="topbar" aria-label="Primary">
+      <a class="brand" href="index.html" aria-label="Security Center home">
+        <picture class="brand-mark">
+          <source srcset="icon-dark.svg" media="(prefers-color-scheme: dark)">
+          <source srcset="icon-light.svg" media="(prefers-color-scheme: light)">
+          <img src="icon-light.svg" alt="" width="56" height="56">
+        </picture>
+        <span>Security Center</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html#features">Features</a>
+        <a href="PrivacyPolicy.html">Privacy</a>
+      </div>
+    </nav>
+
+    <header class="info-header reveal">
+      <a class="back-link" href="index.html">&larr; Back to Security Center</a>
+      <p class="eyebrow">Support</p>
+      <h1>Help for Security Center.</h1>
+      <p>
+        If something is unclear or broken, start here. Most issues come down to camera address details,
+        RTSP reachability, credentials, or quiet-hours behavior rather than the app itself.
+      </p>
+    </header>
+
+    <main class="info-grid">
+      <section class="info-card">
+        <h2>Contact</h2>
+        <p>Questions, bug reports, and setup help can be sent by email.</p>
+
+        <div class="stack-list">
+          <div class="stack-item">
+            <strong>Email</strong>
+            <p><a href="mailto:george@babichevit.com">george@babichevit.com</a></p>
+          </div>
+        </div>
+
+        <div class="callout">
+          Include the app version, platform, and the camera type you are using when possible.
+        </div>
+      </section>
+
+      <section class="info-card">
+        <h2>What to Include</h2>
+        <p>If you are reporting a problem, include enough detail to reproduce it quickly.</p>
+        <ul>
+          <li>Your platform and OS version.</li>
+          <li>The Security Center version you are using.</li>
+          <li>Whether the camera is Reolink or generic RTSP.</li>
+          <li>Whether the issue affects snapshot polling, RTSP streaming, availability, or quiet hours.</li>
+          <li>What you expected to happen and what actually happened.</li>
+        </ul>
+      </section>
+
+      <section class="info-card">
+        <h2>Common Questions</h2>
+
+        <div class="faq-list">
+          <article class="faq-item">
+            <h3>Can I use both Reolink and generic RTSP cameras?</h3>
+            <p>Yes. Security Center supports both. Reolink cameras can use JPG or RTSP, while generic streams use RTSP.</p>
+          </article>
+
+          <article class="faq-item">
+            <h3>Why is my screen black during quiet hours?</h3>
+            <p>That is expected. Quiet hours intentionally black out the screen and pause polling, streaming, and availability checks until the configured end time.</p>
+          </article>
+
+          <article class="faq-item">
+            <h3>Can I save my setup and move it to another device?</h3>
+            <p>Yes. The app supports JSON import and export using the same structure it uses for its stored configuration.</p>
+          </article>
+
+          <article class="faq-item">
+            <h3>Can I make a camera appear in more than one grid?</h3>
+            <p>Yes. Grid assignments are independent, so the same camera can be reused across saved layouts.</p>
+          </article>
+
+          <article class="faq-item">
+            <h3>Why does a generic RTSP camera fail validation?</h3>
+            <p>The full RTSP URL must be valid and reachable. Check the scheme, host, port, credentials, and stream path.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="info-card">
+        <h2>Troubleshooting</h2>
+
+        <div class="faq-list">
+          <article class="faq-item">
+            <h3>Snapshot view says unavailable</h3>
+            <p>Check the host, username, password, channel, and whether the camera should use HTTP or HTTPS for Reolink JPG snapshots.</p>
+          </article>
+
+          <article class="faq-item">
+            <h3>Live stream says unavailable</h3>
+            <p>Confirm the RTSP endpoint is reachable on the expected port and that the stream path and credentials are correct.</p>
+          </article>
+
+          <article class="faq-item">
+            <h3>Sidebar status is not updating</h3>
+            <p>Availability checks pause during quiet hours and return false for disabled cameras. If neither applies, review the camera connection details.</p>
+          </article>
+
+          <article class="faq-item">
+            <h3>A grid cell is empty</h3>
+            <p>Open the saved grid and assign a camera to that cell. Empty cells intentionally show a Select Camera control instead of a placeholder feed.</p>
+          </article>
+
+          <article class="faq-item">
+            <h3>Changes were not saved after closing the editor</h3>
+            <p>App settings save on Done, while camera changes save on Save. Closing the sheet without saving keeps the edit local and can discard it.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="info-card">
+        <h2>Compatibility</h2>
+        <ul>
+          <li>macOS 26.2 or later.</li>
+          <li>iOS 26.2 or later.</li>
+          <li>Reolink JPG snapshots and RTSP streams are supported.</li>
+          <li>Generic RTSP streams are supported.</li>
+        </ul>
+      </section>
+
+      <section class="info-card reveal">
+        <h2>More Links</h2>
+        <div class="card-actions">
+          <a class="button button-primary" href="index.html">Website</a>
+          <a class="button button-secondary" href="../README.md">README</a>
+          <a class="button button-tertiary" href="PrivacyPolicy.html">Privacy Policy</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>&copy; <span data-current-year>2026</span> George Babichev.</p>
+    </footer>
+  </div>
+
+  <script src="site.js"></script>
+</body>
+</html>

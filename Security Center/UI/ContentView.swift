@@ -10,6 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject var viewModel: AppViewModel
     @State private var showingNewGridSheet = false
+    @State private var editingGrid: GridLayout?
     @State private var newGridName = ""
     @State private var newGridColumns = 2
     @State private var newGridRows = 2
@@ -90,6 +91,10 @@ struct ContentView: View {
                     Text(grid.title)
                         .tag(SidebarItem.grid(grid.id))
                         .contextMenu {
+                            Button("Edit Grid") {
+                                startEditingGrid(grid)
+                            }
+
                             Button("Delete Grid", role: .destructive) {
                                 viewModel.deleteGrid(grid)
                             }
@@ -128,9 +133,9 @@ struct ContentView: View {
     private var newGridSheet: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("New Grid")
+                Text(editingGrid == nil ? "New Grid" : "Edit Grid")
                     .font(.title2.weight(.semibold))
-                Text("Create a saved grid layout for your cameras.")
+                Text(editingGrid == nil ? "Create a saved grid layout for your cameras." : "Update this saved grid layout.")
                     .foregroundStyle(.secondary)
             }
 
@@ -167,14 +172,19 @@ struct ContentView: View {
                 Spacer()
 
                 Button("Cancel") {
-                    showingNewGridSheet = false
+                    dismissGridSheet()
                 }
                 .buttonStyle(.bordered)
 
-                Button("Create") {
-                    let grid = viewModel.addGrid(name: newGridName, columns: newGridColumns, rows: newGridRows)
-                    viewModel.selectedSidebarItem = .grid(grid.id)
-                    showingNewGridSheet = false
+                Button(editingGrid == nil ? "Create" : "Save") {
+                    if let grid = editingGrid {
+                        let updatedGrid = viewModel.updateGrid(grid, name: newGridName, columns: newGridColumns, rows: newGridRows)
+                        viewModel.selectedSidebarItem = .grid(updatedGrid.id)
+                    } else {
+                        let grid = viewModel.addGrid(name: newGridName, columns: newGridColumns, rows: newGridRows)
+                        viewModel.selectedSidebarItem = .grid(grid.id)
+                    }
+                    dismissGridSheet()
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -228,10 +238,24 @@ struct ContentView: View {
     }
 
     private func startNewGrid() {
+        editingGrid = nil
         newGridName = ""
         newGridColumns = 2
         newGridRows = 2
         showingNewGridSheet = true
+    }
+
+    private func startEditingGrid(_ grid: GridLayout) {
+        editingGrid = grid
+        newGridName = grid.name
+        newGridColumns = grid.columns
+        newGridRows = grid.rows
+        showingNewGridSheet = true
+    }
+
+    private func dismissGridSheet() {
+        showingNewGridSheet = false
+        editingGrid = nil
     }
 
     private func cameraSidebarIconName(for camera: CameraConfig) -> String {
