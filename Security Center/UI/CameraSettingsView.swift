@@ -22,6 +22,7 @@ struct CameraSettingsView: View {
     }
 
     @ObservedObject var viewModel: AppViewModel
+    let initialCameraID: CameraConfig.ID?
     @Environment(\.dismiss) private var dismiss
     @State private var draft = CameraConfig.emptyDraft
     @State private var selectedCameraID: CameraConfig.ID?
@@ -66,6 +67,7 @@ struct CameraSettingsView: View {
         .padding(16)
         .onAppear {
             syncAppSettingsDraft()
+            openInitialCameraIfNeeded()
         }
         .onChange(of: draft) { _, _ in
             guard !editorState.isValidating else { return }
@@ -123,6 +125,7 @@ struct CameraSettingsView: View {
         .padding(16)
         .onAppear {
             syncAppSettingsDraft()
+            openInitialCameraIfNeeded()
         }
         .onChange(of: draft) { _, _ in
             guard !editorState.isValidating else { return }
@@ -1281,6 +1284,14 @@ struct CameraSettingsView: View {
     private func beginAddingCamera() {
         resetEditor()
         showingCameraEditorSheet = true
+    }
+
+    private func openInitialCameraIfNeeded() {
+        guard let initialCameraID,
+              let camera = viewModel.cameras.first(where: { $0.id == initialCameraID }) else {
+            return
+        }
+        openEditor(for: camera)
     }
 
     private func openEditor(for camera: CameraConfig) {

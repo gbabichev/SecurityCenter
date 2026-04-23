@@ -11,6 +11,7 @@ struct ContentView: View {
     @ObservedObject var viewModel: AppViewModel
     @State private var showingNewGridSheet = false
     @State private var editingGrid: GridLayout?
+    @State private var settingsInitialCameraID: CameraConfig.ID?
     @State private var newGridName = ""
     @State private var newGridColumns = 2
     @State private var newGridRows = 2
@@ -43,10 +44,15 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $viewModel.showSettings) {
-            CameraSettingsView(viewModel: viewModel)
+            CameraSettingsView(viewModel: viewModel, initialCameraID: settingsInitialCameraID)
         }
         .sheet(isPresented: $showingNewGridSheet) {
             newGridSheet
+        }
+        .onChange(of: viewModel.showSettings) { _, isPresented in
+            if !isPresented {
+                settingsInitialCameraID = nil
+            }
         }
     }
 
@@ -77,6 +83,16 @@ struct ContentView: View {
                         .opacity(camera.isEnabled ? 1 : 0.55)
                         .contentShape(Rectangle())
                         .tag(SidebarItem.camera(camera.id))
+                        .contextMenu {
+                            Button("Edit") {
+                                settingsInitialCameraID = camera.id
+                                viewModel.showSettings = true
+                            }
+
+                            Button("Delete", role: .destructive) {
+                                viewModel.deleteCamera(camera)
+                            }
+                        }
                         .background(
                             AvailabilityProbe(camera: camera, isPaused: viewModel.isQuietHoursActive) { isAvailable in
                                 viewModel.updateAvailability(for: camera.id, isAvailable: isAvailable)
