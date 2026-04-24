@@ -22,6 +22,7 @@ final class AppViewModel: ObservableObject {
         static let selectedSidebarItem = "selectedSidebarItem"
         static let quietHoursJSON = "quietHoursJSON"
         static let showQuietHoursInToolbar = "showQuietHoursInToolbar"
+        static let quietHoursScheduleOverridesManual = "quietHoursScheduleOverridesManual"
     }
 
     private var usesImplicitDefaultGrid: Bool {
@@ -65,6 +66,12 @@ final class AppViewModel: ObservableObject {
             }
         }
     }
+    @Published var quietHoursScheduleOverridesManual = false {
+        didSet {
+            defaults.set(quietHoursScheduleOverridesManual, forKey: StorageKey.quietHoursScheduleOverridesManual)
+            refreshQuietHoursState()
+        }
+    }
     @Published var showSettings = false
     @Published var selectedSidebarItem: SidebarItem? {
         didSet {
@@ -74,6 +81,7 @@ final class AppViewModel: ObservableObject {
     @Published var availability: [CameraConfig.ID: Bool] = [:]
     @Published private(set) var isQuietHoursActive = false
     private var quietHoursManualOverride: Bool?
+    private var lastScheduledQuietHoursActive: Bool?
 
     init() {
         loadGrids()
@@ -81,6 +89,7 @@ final class AppViewModel: ObservableObject {
         loadCameras()
         loadQuietHours()
         showQuietHoursInToolbar = defaults.bool(forKey: StorageKey.showQuietHoursInToolbar)
+        quietHoursScheduleOverridesManual = defaults.bool(forKey: StorageKey.quietHoursScheduleOverridesManual)
         gridPictureStyle = GridPictureStyle(
             rawValue: defaults.string(forKey: StorageKey.gridPictureStyle) ?? GridPictureStyle.fillEachBox.rawValue
         ) ?? .fillEachBox
@@ -105,7 +114,7 @@ final class AppViewModel: ObservableObject {
     }
 
     var quietHoursSaverEndLabel: String? {
-        quietHoursManualOverride == true ? nil : quietHours.endLabel
+        quietHoursManualOverride == true && !quietHoursScheduleOverridesManual ? nil : quietHours.endLabel
     }
 
     func updateAvailability(for cameraID: CameraConfig.ID, isAvailable: Bool) {
@@ -185,6 +194,7 @@ final class AppViewModel: ObservableObject {
             },
             gridPictureStyle: gridPictureStyle,
             showQuietHoursInToolbar: showQuietHoursInToolbar,
+            quietHoursScheduleOverridesManual: quietHoursScheduleOverridesManual,
             quietHours: quietHours
         )
         let encoder = JSONEncoder()
@@ -202,6 +212,7 @@ final class AppViewModel: ObservableObject {
         gridAssignments = importedGridState.assignments
         gridPictureStyle = payload.gridPictureStyle
         showQuietHoursInToolbar = payload.showQuietHoursInToolbar ?? false
+        quietHoursScheduleOverridesManual = payload.quietHoursScheduleOverridesManual ?? false
         quietHours = payload.quietHours ?? QuietHoursSchedule()
         availability = [:]
         restoreSelectedSidebarItem()
@@ -347,6 +358,15 @@ final class AppViewModel: ObservableObject {
 
     private func refreshQuietHoursState(now: Date = Date()) {
         let scheduledQuietHoursActive = quietHours.isActive(at: now)
+        if quietHoursScheduleOverridesManual,
+           let lastScheduledQuietHoursActive,
+           lastScheduledQuietHoursActive != scheduledQuietHoursActive {
+            quietHoursManualOverride = nil
+        }
+        lastScheduledQuietHoursActive = scheduledQuietHoursActive
+        if quietHoursScheduleOverridesManual && quietHoursManualOverride == false && scheduledQuietHoursActive {
+            quietHoursManualOverride = nil
+        }
         if quietHoursManualOverride == false && !scheduledQuietHoursActive {
             quietHoursManualOverride = nil
         }
@@ -610,6 +630,7 @@ private struct AppConfigurationPayload: Codable {
     let gridAssignments: [String: [CameraConfig.ID?]]
     let gridPictureStyle: GridPictureStyle
     let showQuietHoursInToolbar: Bool?
+    let quietHoursScheduleOverridesManual: Bool?
     let quietHours: QuietHoursSchedule?
 }
 

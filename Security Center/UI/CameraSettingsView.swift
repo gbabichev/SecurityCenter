@@ -35,6 +35,7 @@ struct CameraSettingsView: View {
     @State private var gridPictureStyleDraft: GridPictureStyle = .fillEachBox
     @State private var quietHoursDraft = QuietHoursSchedule()
     @State private var showQuietHoursInToolbarDraft = false
+    @State private var quietHoursScheduleOverridesManualDraft = false
     @State private var showingCameraEditorSheet = false
 #if os(iOS)
     @State private var showingImportPicker = false
@@ -203,10 +204,6 @@ struct CameraSettingsView: View {
                 Divider()
 
                 quietHoursSettingsBlock
-
-                Divider()
-
-                quietHoursToolbarSettingsBlock
             }
 #else
             VStack(alignment: .leading, spacing: 12) {
@@ -223,8 +220,6 @@ struct CameraSettingsView: View {
                 }
 
                 quietHoursSettingsBlock
-
-                quietHoursToolbarSettingsBlock
 
                 fieldBlock(title: "Configuration", caption: "Import or export your app settings and cameras as JSON.") {
                     HStack(spacing: 10) {
@@ -274,6 +269,37 @@ struct CameraSettingsView: View {
             Toggle("Turn on quiet hours", isOn: quietHoursEnabledBinding)
 #endif
 
+#if os(macOS)
+            SettingsRow(
+                "Show Quiet Hours in Toolbar",
+                systemImage: "moon",
+                subtitle: "Add a toolbar button for turning quiet hours on or off."
+            ) {
+                Toggle(isOn: $showQuietHoursInToolbarDraft) {
+                }
+                .toggleStyle(.switch)
+            }
+#else
+            Toggle("Show Quiet Hours in Toolbar", isOn: $showQuietHoursInToolbarDraft)
+#endif
+
+#if os(macOS)
+            SettingsRow(
+                "Schedule Overrides Manual",
+                systemImage: "clock",
+                subtitle: "Scheduled quiet hours take back over when they start or end."
+            ) {
+                Toggle(isOn: $quietHoursScheduleOverridesManualDraft) {
+                }
+                .toggleStyle(.switch)
+                .disabled(!showQuietHoursInToolbarDraft)
+            }
+            .opacity(showQuietHoursInToolbarDraft ? 1 : 0.5)
+#else
+            Toggle("Schedule Overrides Manual", isOn: $quietHoursScheduleOverridesManualDraft)
+                .disabled(!showQuietHoursInToolbarDraft)
+#endif
+
             if quietHoursDraft.isEnabled {
 #if os(macOS)
                 HStack(spacing: 16) {
@@ -291,24 +317,6 @@ struct CameraSettingsView: View {
             Text(quietHoursStatusText)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-        }
-    }
-
-    private var quietHoursToolbarSettingsBlock: some View {
-        fieldBlock(title: "Toolbar", caption: "Show a quick quiet hours button in the app toolbar.") {
-#if os(macOS)
-            SettingsRow(
-                "Show Quiet Hours in Toolbar",
-                systemImage: "moon",
-                subtitle: "Add a toolbar button for turning quiet hours on or off."
-            ) {
-                Toggle(isOn: $showQuietHoursInToolbarDraft) {
-                }
-                .toggleStyle(.switch)
-            }
-#else
-            Toggle("Show Quiet Hours in Toolbar", isOn: $showQuietHoursInToolbarDraft)
-#endif
         }
     }
 
@@ -1063,6 +1071,7 @@ struct CameraSettingsView: View {
         gridPictureStyleDraft != viewModel.gridPictureStyle
             || quietHoursDraft != viewModel.quietHours
             || showQuietHoursInToolbarDraft != viewModel.showQuietHoursInToolbar
+            || quietHoursScheduleOverridesManualDraft != viewModel.quietHoursScheduleOverridesManual
     }
 
     private var baselineDraft: CameraConfig {
@@ -1418,12 +1427,14 @@ struct CameraSettingsView: View {
         viewModel.gridPictureStyle = gridPictureStyleDraft
         viewModel.quietHours = quietHoursDraft
         viewModel.showQuietHoursInToolbar = showQuietHoursInToolbarDraft
+        viewModel.quietHoursScheduleOverridesManual = quietHoursScheduleOverridesManualDraft
     }
 
     private func syncAppSettingsDraft() {
         gridPictureStyleDraft = viewModel.gridPictureStyle
         quietHoursDraft = viewModel.quietHours
         showQuietHoursInToolbarDraft = viewModel.showQuietHoursInToolbar
+        quietHoursScheduleOverridesManualDraft = viewModel.quietHoursScheduleOverridesManual
     }
 
     private func copySourceURLToClipboard() {
