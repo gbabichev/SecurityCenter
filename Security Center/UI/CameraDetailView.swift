@@ -57,7 +57,11 @@ struct CameraDetailView: View {
     private var contentView: some View {
         switch camera.feedMode {
         case .snapshotPolling:
-            SnapshotView(url: camera.snapshotURL, scalingMode: .fit) { status in
+            SnapshotView(
+                url: camera.snapshotURL,
+                scalingMode: .fit,
+                pollingIntervalSeconds: camera.snapshotPollingIntervalSeconds
+            ) { status in
                 streamStatus = status
             }
         case .rtsp:

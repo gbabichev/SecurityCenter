@@ -127,7 +127,8 @@ struct GridDetailView: View {
             case .snapshotPolling:
                 SnapshotView(
                     url: camera.snapshotURL,
-                    scalingMode: viewModel.gridPictureStyle == .showWholePicture ? .fit : .stretch
+                    scalingMode: viewModel.gridPictureStyle == .showWholePicture ? .fit : .stretch,
+                    pollingIntervalSeconds: camera.snapshotPollingIntervalSeconds
                 ) { _ in }
             case .rtsp:
                 RTSPStreamView(

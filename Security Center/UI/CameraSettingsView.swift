@@ -488,8 +488,11 @@ struct CameraSettingsView: View {
                         addressField
                         credentialsSection
 
-                        if draft.isEnabled && draft.feedMode == .snapshotPolling {
-                            protocolField
+                        if draft.feedMode == .snapshotPolling {
+                            if draft.isEnabled {
+                                protocolField
+                            }
+                            pollingFrequencyField
                         }
 
                         if draft.feedMode == .rtsp {
@@ -793,6 +796,52 @@ struct CameraSettingsView: View {
                 .labelsHidden()
             Text(draft.useHTTPS ? "HTTPS" : "HTTP")
                 .foregroundStyle(.secondary)
+        }
+#endif
+    }
+
+    private var pollingFrequencyField: some View {
+#if os(macOS)
+        SettingsRow(
+            "Update Every",
+            systemImage: "clock.arrow.circlepath",
+            subtitle: "Choose how often JPG pictures refresh."
+        ) {
+            HStack(spacing: 12) {
+                Stepper(
+                    "Update Every",
+                    value: $draft.snapshotPollingIntervalSeconds,
+                    in: 1...10
+                )
+                .labelsHidden()
+
+                Text("\(draft.snapshotPollingIntervalSeconds)s")
+                    .font(.headline.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 32, alignment: .trailing)
+            }
+            .frame(maxWidth: 160)
+        }
+#else
+        fieldBlock(title: "Update Every", caption: "Choose how often JPG pictures refresh.") {
+            HStack(spacing: 12) {
+                Stepper(
+                    "Update Every",
+                    value: $draft.snapshotPollingIntervalSeconds,
+                    in: 1...10
+                )
+                .labelsHidden()
+
+                Text("\(draft.snapshotPollingIntervalSeconds)s")
+                    .font(.headline.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 36, alignment: .trailing)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
 #endif
     }

@@ -285,6 +285,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
     var channel: Int
     var useHTTPS: Bool
     var feedMode: CameraFeedMode = .snapshotPolling
+    var snapshotPollingIntervalSeconds: Int = 1
     var isEnabled: Bool = true
     var streamVariant: CameraStreamVariant = .main
     var isMuted: Bool = false
@@ -302,6 +303,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         channel: Int,
         useHTTPS: Bool,
         feedMode: CameraFeedMode = .snapshotPolling,
+        snapshotPollingIntervalSeconds: Int = 1,
         isEnabled: Bool = true,
         streamVariant: CameraStreamVariant = .main,
         isMuted: Bool = false,
@@ -318,6 +320,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         self.channel = channel
         self.useHTTPS = useHTTPS
         self.feedMode = feedMode
+        self.snapshotPollingIntervalSeconds = Self.clampedSnapshotPollingInterval(snapshotPollingIntervalSeconds)
         self.isEnabled = isEnabled
         self.streamVariant = streamVariant
         self.isMuted = isMuted
@@ -336,6 +339,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         case channel
         case useHTTPS
         case feedMode
+        case snapshotPollingIntervalSeconds
         case isEnabled
         case streamVariant
         case isMuted
@@ -355,6 +359,9 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         channel = try container.decode(Int.self, forKey: .channel)
         useHTTPS = try container.decode(Bool.self, forKey: .useHTTPS)
         feedMode = try container.decodeIfPresent(CameraFeedMode.self, forKey: .feedMode) ?? .snapshotPolling
+        snapshotPollingIntervalSeconds = Self.clampedSnapshotPollingInterval(
+            try container.decodeIfPresent(Int.self, forKey: .snapshotPollingIntervalSeconds) ?? 1
+        )
         isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
         streamVariant = try container.decodeIfPresent(CameraStreamVariant.self, forKey: .streamVariant) ?? .main
         isMuted = try container.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
@@ -378,6 +385,7 @@ struct CameraConfig: Identifiable, Codable, Hashable {
             channel: channel,
             useHTTPS: useHTTPS,
             feedMode: kind == .genericRTSP ? .rtsp : feedMode,
+            snapshotPollingIntervalSeconds: Self.clampedSnapshotPollingInterval(snapshotPollingIntervalSeconds),
             isEnabled: isEnabled,
             streamVariant: streamVariant,
             isMuted: isMuted,
@@ -504,12 +512,17 @@ struct CameraConfig: Identifiable, Codable, Hashable {
             channel: 0,
             useHTTPS: false,
             feedMode: .snapshotPolling,
+            snapshotPollingIntervalSeconds: 1,
             isEnabled: true,
             streamVariant: .main,
             isMuted: false,
             showsNameInDisplay: true,
             nameLocation: .topLeft
         )
+    }
+
+    static func clampedSnapshotPollingInterval(_ seconds: Int) -> Int {
+        min(max(seconds, 1), 10)
     }
 }
 

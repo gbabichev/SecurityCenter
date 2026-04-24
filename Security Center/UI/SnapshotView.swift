@@ -16,6 +16,7 @@ enum SnapshotScalingMode {
 struct SnapshotView: View {
     let url: URL?
     var scalingMode: SnapshotScalingMode = .fit
+    var pollingIntervalSeconds = 1
     @State private var image: PlatformImage?
     let onStatusChange: (SnapshotStatus) -> Void
 
@@ -32,7 +33,7 @@ struct SnapshotView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
-        .task(id: url) {
+        .task(id: SnapshotTaskKey(url: url, pollingIntervalSeconds: normalizedPollingIntervalSeconds)) {
             image = nil
             onStatusChange(.loading)
             await poll()
@@ -42,7 +43,7 @@ struct SnapshotView: View {
     private func poll() async {
         while !Task.isCancelled {
             await fetchSnapshot()
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            try? await Task.sleep(nanoseconds: UInt64(normalizedPollingIntervalSeconds) * 1_000_000_000)
         }
     }
 
@@ -115,4 +116,13 @@ struct SnapshotView: View {
             content
         }
     }
+
+    private var normalizedPollingIntervalSeconds: Int {
+        CameraConfig.clampedSnapshotPollingInterval(pollingIntervalSeconds)
+    }
+}
+
+private struct SnapshotTaskKey: Hashable {
+    let url: URL?
+    let pollingIntervalSeconds: Int
 }
