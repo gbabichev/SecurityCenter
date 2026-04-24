@@ -32,6 +32,7 @@ struct CameraSettingsView: View {
     @State private var showingUnsavedChangesAlert = false
     @State private var showingDeleteCameraConfirmation = false
     @State private var didCopySourceURL = false
+    @State private var appThemeDraft: AppTheme = .system
     @State private var gridPictureStyleDraft: GridPictureStyle = .fillEachBox
     @State private var quietHoursDraft = QuietHoursSchedule()
     @State private var showQuietHoursInToolbarDraft = false
@@ -187,6 +188,23 @@ struct CameraSettingsView: View {
 #if os(macOS)
             VStack(alignment: .leading, spacing: 16) {
                 SettingsRow(
+                    "Theme",
+                    systemImage: "circle.lefthalf.filled",
+                    subtitle: appThemeDraft.title
+                ) {
+                    Picker("Theme", selection: $appThemeDraft) {
+                        ForEach(AppTheme.allCases) { theme in
+                            Text(theme.title)
+                                .tag(theme)
+                        }
+                    }
+                    .frame(maxWidth: 360)
+                    .pickerStyle(.segmented)
+                }
+
+                Divider()
+
+                SettingsRow(
                     "Camera Grid",
                     systemImage: "square.grid.2x2",
                     subtitle: gridPictureStyleDraft.description
@@ -207,6 +225,14 @@ struct CameraSettingsView: View {
             }
 #else
             VStack(alignment: .leading, spacing: 12) {
+                fieldBlock(title: "Theme", caption: "Choose how the app should appear.") {
+                    optionButtons(
+                        selection: $appThemeDraft,
+                        options: AppTheme.allCases,
+                        columns: 3
+                    ) { $0.title }
+                }
+
                 fieldBlock(title: "Camera Grid", caption: "Choose how pictures should look in the grid view.") {
                     optionButtons(
                         selection: $gridPictureStyleDraft,
@@ -1068,7 +1094,8 @@ struct CameraSettingsView: View {
     }
 
     private var hasUnsavedAppSettingsChanges: Bool {
-        gridPictureStyleDraft != viewModel.gridPictureStyle
+        appThemeDraft != viewModel.appTheme
+            || gridPictureStyleDraft != viewModel.gridPictureStyle
             || quietHoursDraft != viewModel.quietHours
             || showQuietHoursInToolbarDraft != viewModel.showQuietHoursInToolbar
             || quietHoursScheduleOverridesManualDraft != viewModel.quietHoursScheduleOverridesManual
@@ -1424,6 +1451,7 @@ struct CameraSettingsView: View {
     }
 
     private func saveAppSettings() {
+        viewModel.appTheme = appThemeDraft
         viewModel.gridPictureStyle = gridPictureStyleDraft
         viewModel.quietHours = quietHoursDraft
         viewModel.showQuietHoursInToolbar = showQuietHoursInToolbarDraft
@@ -1431,6 +1459,7 @@ struct CameraSettingsView: View {
     }
 
     private func syncAppSettingsDraft() {
+        appThemeDraft = viewModel.appTheme
         gridPictureStyleDraft = viewModel.gridPictureStyle
         quietHoursDraft = viewModel.quietHours
         showQuietHoursInToolbarDraft = viewModel.showQuietHoursInToolbar

@@ -208,6 +208,36 @@ enum GridPictureStyle: String, CaseIterable, Identifiable, Hashable, Codable {
     }
 }
 
+enum AppTheme: String, CaseIterable, Identifiable, Hashable, Codable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system:
+            return "System"
+        case .light:
+            return "Light"
+        case .dark:
+            return "Dark"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system:
+            return nil
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        }
+    }
+}
+
 struct QuietHoursSchedule: Codable, Hashable {
     var isEnabled: Bool = false
     var startMinutes: Int = 22 * 60

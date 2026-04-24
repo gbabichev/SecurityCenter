@@ -21,6 +21,7 @@ final class AppViewModel: ObservableObject {
         static let gridPictureStyle = "gridPictureStyle"
         static let selectedSidebarItem = "selectedSidebarItem"
         static let quietHoursJSON = "quietHoursJSON"
+        static let appTheme = "appTheme"
         static let showQuietHoursInToolbar = "showQuietHoursInToolbar"
         static let quietHoursScheduleOverridesManual = "quietHoursScheduleOverridesManual"
     }
@@ -49,6 +50,11 @@ final class AppViewModel: ObservableObject {
     @Published var gridPictureStyle: GridPictureStyle = .fillEachBox {
         didSet {
             defaults.set(gridPictureStyle.rawValue, forKey: StorageKey.gridPictureStyle)
+        }
+    }
+    @Published var appTheme: AppTheme = .system {
+        didSet {
+            defaults.set(appTheme.rawValue, forKey: StorageKey.appTheme)
         }
     }
     @Published var quietHours = QuietHoursSchedule() {
@@ -90,6 +96,7 @@ final class AppViewModel: ObservableObject {
         loadQuietHours()
         showQuietHoursInToolbar = defaults.bool(forKey: StorageKey.showQuietHoursInToolbar)
         quietHoursScheduleOverridesManual = defaults.bool(forKey: StorageKey.quietHoursScheduleOverridesManual)
+        appTheme = AppTheme(rawValue: defaults.string(forKey: StorageKey.appTheme) ?? AppTheme.system.rawValue) ?? .system
         gridPictureStyle = GridPictureStyle(
             rawValue: defaults.string(forKey: StorageKey.gridPictureStyle) ?? GridPictureStyle.fillEachBox.rawValue
         ) ?? .fillEachBox
@@ -193,6 +200,7 @@ final class AppViewModel: ObservableObject {
                 result[item.key.uuidString] = item.value
             },
             gridPictureStyle: gridPictureStyle,
+            appTheme: appTheme,
             showQuietHoursInToolbar: showQuietHoursInToolbar,
             quietHoursScheduleOverridesManual: quietHoursScheduleOverridesManual,
             quietHours: quietHours
@@ -211,6 +219,7 @@ final class AppViewModel: ObservableObject {
         grids = importedGridState.grids
         gridAssignments = importedGridState.assignments
         gridPictureStyle = payload.gridPictureStyle
+        appTheme = payload.appTheme ?? .system
         showQuietHoursInToolbar = payload.showQuietHoursInToolbar ?? false
         quietHoursScheduleOverridesManual = payload.quietHoursScheduleOverridesManual ?? false
         quietHours = payload.quietHours ?? QuietHoursSchedule()
@@ -629,6 +638,7 @@ private struct AppConfigurationPayload: Codable {
     let grids: [GridLayout]?
     let gridAssignments: [String: [CameraConfig.ID?]]
     let gridPictureStyle: GridPictureStyle
+    let appTheme: AppTheme?
     let showQuietHoursInToolbar: Bool?
     let quietHoursScheduleOverridesManual: Bool?
     let quietHours: QuietHoursSchedule?

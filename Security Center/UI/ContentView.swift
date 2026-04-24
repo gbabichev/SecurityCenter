@@ -68,6 +68,7 @@ struct ContentView: View {
                 settingsInitialCameraID = nil
             }
         }
+        .preferredColorScheme(viewModel.appTheme.colorScheme)
     }
 
     private var sidebar: some View {
