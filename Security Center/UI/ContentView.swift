@@ -42,6 +42,20 @@ struct ContentView: View {
                     )
                 }
             }
+            .toolbar {
+                if viewModel.showQuietHoursInToolbar {
+                    ToolbarItem(placement: .automatic) {
+                        Button {
+                            viewModel.toggleManualQuietHours()
+                        } label: {
+                            Label(quietHoursToolbarTitle, systemImage: viewModel.isQuietHoursActive ? "moon.fill" : "moon")
+                        }
+#if os(macOS)
+                        .help(quietHoursToolbarTitle)
+#endif
+                    }
+                }
+            }
         }
         .sheet(isPresented: $viewModel.showSettings) {
             CameraSettingsView(viewModel: viewModel, initialCameraID: settingsInitialCameraID)
@@ -144,6 +158,10 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    private var quietHoursToolbarTitle: String {
+        viewModel.isQuietHoursActive ? "Turn Off Quiet Hours" : "Turn On Quiet Hours"
     }
 
     private var newGridSheet: some View {

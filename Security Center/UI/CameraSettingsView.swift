@@ -34,6 +34,7 @@ struct CameraSettingsView: View {
     @State private var didCopySourceURL = false
     @State private var gridPictureStyleDraft: GridPictureStyle = .fillEachBox
     @State private var quietHoursDraft = QuietHoursSchedule()
+    @State private var showQuietHoursInToolbarDraft = false
     @State private var showingCameraEditorSheet = false
 #if os(iOS)
     @State private var showingImportPicker = false
@@ -202,6 +203,10 @@ struct CameraSettingsView: View {
                 Divider()
 
                 quietHoursSettingsBlock
+
+                Divider()
+
+                quietHoursToolbarSettingsBlock
             }
 #else
             VStack(alignment: .leading, spacing: 12) {
@@ -218,6 +223,8 @@ struct CameraSettingsView: View {
                 }
 
                 quietHoursSettingsBlock
+
+                quietHoursToolbarSettingsBlock
 
                 fieldBlock(title: "Configuration", caption: "Import or export your app settings and cameras as JSON.") {
                     HStack(spacing: 10) {
@@ -284,6 +291,24 @@ struct CameraSettingsView: View {
             Text(quietHoursStatusText)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    private var quietHoursToolbarSettingsBlock: some View {
+        fieldBlock(title: "Toolbar", caption: "Show a quick quiet hours button in the app toolbar.") {
+#if os(macOS)
+            SettingsRow(
+                "Show Quiet Hours in Toolbar",
+                systemImage: "moon",
+                subtitle: "Add a toolbar button for turning quiet hours on or off."
+            ) {
+                Toggle(isOn: $showQuietHoursInToolbarDraft) {
+                }
+                .toggleStyle(.switch)
+            }
+#else
+            Toggle("Show Quiet Hours in Toolbar", isOn: $showQuietHoursInToolbarDraft)
+#endif
         }
     }
 
@@ -1035,7 +1060,9 @@ struct CameraSettingsView: View {
     }
 
     private var hasUnsavedAppSettingsChanges: Bool {
-        gridPictureStyleDraft != viewModel.gridPictureStyle || quietHoursDraft != viewModel.quietHours
+        gridPictureStyleDraft != viewModel.gridPictureStyle
+            || quietHoursDraft != viewModel.quietHours
+            || showQuietHoursInToolbarDraft != viewModel.showQuietHoursInToolbar
     }
 
     private var baselineDraft: CameraConfig {
@@ -1390,11 +1417,13 @@ struct CameraSettingsView: View {
     private func saveAppSettings() {
         viewModel.gridPictureStyle = gridPictureStyleDraft
         viewModel.quietHours = quietHoursDraft
+        viewModel.showQuietHoursInToolbar = showQuietHoursInToolbarDraft
     }
 
     private func syncAppSettingsDraft() {
         gridPictureStyleDraft = viewModel.gridPictureStyle
         quietHoursDraft = viewModel.quietHours
+        showQuietHoursInToolbarDraft = viewModel.showQuietHoursInToolbar
     }
 
     private func copySourceURLToClipboard() {

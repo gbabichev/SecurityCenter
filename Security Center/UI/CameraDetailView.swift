@@ -108,7 +108,7 @@ struct CameraDetailView: View {
     }
 
     private var quietHoursView: some View {
-        QuietHoursSaverView(endLabel: viewModel.quietHours.endLabel)
+        QuietHoursSaverView(endLabel: viewModel.quietHoursSaverEndLabel)
     }
 
     private var loadingTitle: String {

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct QuietHoursSaverView: View {
-    let endLabel: String
+    let endLabel: String?
     @State private var positionIndex = 0
 
     private let positions: [UnitPoint] = [
@@ -59,7 +59,7 @@ struct QuietHoursSaverView: View {
                 .font(.system(size: 34))
             Text("Quiet Hours")
                 .font(.title3.weight(.semibold))
-            Text("Screen is blacked out and camera traffic is paused until \(endLabel).")
+            Text(statusMessage)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -68,6 +68,13 @@ struct QuietHoursSaverView: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 22)
         .background(.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private var statusMessage: String {
+        if let endLabel {
+            return "Screen is blacked out and camera traffic is paused until \(endLabel)."
+        }
+        return "Screen is blacked out and camera traffic is paused until quiet hours are turned off."
     }
 
     private func alignment(for point: UnitPoint) -> Alignment {

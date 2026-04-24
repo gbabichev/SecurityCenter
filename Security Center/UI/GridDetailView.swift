@@ -35,7 +35,7 @@ struct GridDetailView: View {
                     .ignoresSafeArea()
 
                 if viewModel.isQuietHoursActive {
-                    QuietHoursSaverView(endLabel: viewModel.quietHours.endLabel)
+                    QuietHoursSaverView(endLabel: viewModel.quietHoursSaverEndLabel)
                 } else {
                     VStack(spacing: spacing) {
                         ForEach(0..<layout.rows, id: \.self) { row in
