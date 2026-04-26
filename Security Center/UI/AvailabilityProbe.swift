@@ -39,7 +39,12 @@ struct AvailabilityProbe: View {
         case .snapshotPolling:
             guard let url = camera.snapshotURL else { return false }
             do {
-                let (data, response) = try await CameraNetworkSession.shared.data(from: url)
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 6
+                request.cachePolicy = .reloadIgnoringLocalCacheData
+                request.setValue("image/*", forHTTPHeaderField: "Accept")
+
+                let (data, response) = try await CameraNetworkSession.shared.data(for: request)
                 guard let http = response as? HTTPURLResponse,
                       (200...299).contains(http.statusCode) else {
                     return false

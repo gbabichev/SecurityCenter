@@ -153,6 +153,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         private var reconnectTask: Task<Void, Never>?
         private var isActive = false
         private var hasShownVideo = false
+        private var reconnectDelayNanoseconds: UInt64 = 2_000_000_000
 
         init(
             onStatusChange: @escaping (SnapshotStatus) -> Void,
@@ -185,6 +186,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             reconnectTask?.cancel()
             currentURL = url
             hasShownVideo = false
+            reconnectDelayNanoseconds = 2_000_000_000
 
             guard let url else {
                 player.stop()
@@ -204,6 +206,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             isActive = false
             reconnectTask?.cancel()
             reconnectTask = nil
+            reconnectDelayNanoseconds = 2_000_000_000
             player.stop()
             player.media = nil
         }
@@ -217,6 +220,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             case .playing, .paused, .esAdded:
                 reconnectTask?.cancel()
                 reconnectTask = nil
+                reconnectDelayNanoseconds = 2_000_000_000
                 hasShownVideo = true
                 publishVideoSizeIfAvailable()
                 publish(.ok)
@@ -234,8 +238,10 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         private func scheduleReconnect() {
             guard isActive, currentURL != nil else { return }
             reconnectTask?.cancel()
+            let delayNanoseconds = reconnectDelayNanoseconds
+            reconnectDelayNanoseconds = min(reconnectDelayNanoseconds * 2, 30_000_000_000)
             reconnectTask = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                try? await Task.sleep(nanoseconds: delayNanoseconds)
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     guard let self, let currentURL = self.currentURL, self.isActive else { return }

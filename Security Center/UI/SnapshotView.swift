@@ -56,7 +56,12 @@ struct SnapshotView: View {
             return
         }
         do {
-            let (data, response) = try await CameraNetworkSession.shared.data(from: url)
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 8
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            request.setValue("image/*", forHTTPHeaderField: "Accept")
+
+            let (data, response) = try await CameraNetworkSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse,
                   (200...299).contains(http.statusCode) else {
                 markSnapshotFailure()

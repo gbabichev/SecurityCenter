@@ -12,6 +12,8 @@ enum CameraNetworkSession {
         let configuration = URLSessionConfiguration.default
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
+        configuration.timeoutIntervalForRequest = 8
+        configuration.timeoutIntervalForResource = 12
         return URLSession(
             configuration: configuration,
             delegate: InsecureHTTPSDelegate(),

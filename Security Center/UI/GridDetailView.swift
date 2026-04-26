@@ -63,7 +63,7 @@ struct GridDetailView: View {
 
         ZStack {
             if let camera {
-                gridContent(for: camera)
+                gridContent(for: camera, index: index)
             } else {
                 Rectangle()
                     .fill(.black)
@@ -111,34 +111,16 @@ struct GridDetailView: View {
     }
 
     @ViewBuilder
-    private func gridContent(for camera: CameraConfig) -> some View {
-        if !camera.isEnabled {
-            Rectangle()
-                .fill(.black)
-                .overlay(
-                    ContentUnavailableView(
-                        "Disabled",
-                        systemImage: "pause.circle",
-                        description: Text("Enable in settings")
-                    )
-                )
-        } else {
-            switch camera.feedMode {
-            case .snapshotPolling:
-                SnapshotView(
-                    url: camera.snapshotURL,
-                    scalingMode: viewModel.gridPictureStyle == .showWholePicture ? .fit : .stretch,
-                    pollingIntervalSeconds: camera.snapshotPollingIntervalSeconds
-                ) { _ in }
-            case .rtsp:
-                RTSPStreamView(
-                    url: camera.rtspURL,
-                    isMuted: camera.isMuted,
-                    scalingMode: viewModel.gridPictureStyle == .showWholePicture ? .fit : .stretch
-                ) { _ in }
-                .id("\(camera.id.uuidString)-\(viewModel.gridPictureStyle.rawValue)")
-            }
-        }
+    private func gridContent(for camera: CameraConfig, index: Int) -> some View {
+        GridCameraContent(
+            camera: camera,
+            gridPictureStyle: viewModel.gridPictureStyle,
+            startupDelayNanoseconds: startupDelayNanoseconds(for: index)
+        )
+    }
+
+    private func startupDelayNanoseconds(for index: Int) -> UInt64 {
+        UInt64(min(index, 12)) * 250_000_000
     }
 
     private func emptyCellMenu(for index: Int) -> some View {
@@ -233,6 +215,88 @@ private struct GridSelectionMenuItem: Identifiable {
     let id = UUID()
     let title: String
     let action: () -> Void
+}
+
+private struct GridCameraContent: View {
+    let camera: CameraConfig
+    let gridPictureStyle: GridPictureStyle
+    let startupDelayNanoseconds: UInt64
+    @State private var isReady = false
+
+    var body: some View {
+        Group {
+            if !camera.isEnabled {
+                disabledContent
+            } else if isReady {
+                cameraContent
+            } else {
+                loadingContent
+            }
+        }
+        .task(id: startupKey) {
+            isReady = false
+            if startupDelayNanoseconds > 0 {
+                try? await Task.sleep(nanoseconds: startupDelayNanoseconds)
+            }
+            guard !Task.isCancelled else { return }
+            isReady = true
+        }
+    }
+
+    @ViewBuilder
+    private var cameraContent: some View {
+        switch camera.feedMode {
+        case .snapshotPolling:
+            SnapshotView(
+                url: camera.snapshotURL,
+                scalingMode: gridPictureStyle == .showWholePicture ? .fit : .stretch,
+                pollingIntervalSeconds: camera.snapshotPollingIntervalSeconds
+            ) { _ in }
+        case .rtsp:
+            RTSPStreamView(
+                url: camera.rtspURL,
+                isMuted: camera.isMuted,
+                scalingMode: gridPictureStyle == .showWholePicture ? .fit : .stretch
+            ) { _ in }
+            .id("\(camera.id.uuidString)-\(gridPictureStyle.rawValue)")
+        }
+    }
+
+    private var disabledContent: some View {
+        Rectangle()
+            .fill(.black)
+            .overlay(
+                ContentUnavailableView(
+                    "Disabled",
+                    systemImage: "pause.circle",
+                    description: Text("Enable in settings")
+                )
+            )
+    }
+
+    private var loadingContent: some View {
+        Rectangle()
+            .fill(.black)
+            .overlay(
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(.white)
+            )
+    }
+
+    private var startupKey: GridCameraStartupKey {
+        GridCameraStartupKey(
+            camera: camera,
+            gridPictureStyle: gridPictureStyle,
+            startupDelayNanoseconds: startupDelayNanoseconds
+        )
+    }
+}
+
+private struct GridCameraStartupKey: Hashable {
+    let camera: CameraConfig
+    let gridPictureStyle: GridPictureStyle
+    let startupDelayNanoseconds: UInt64
 }
 
 #if os(macOS)
