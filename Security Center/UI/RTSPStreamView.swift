@@ -13,6 +13,40 @@ enum RTSPScalingMode {
     case stretch
 }
 
+enum RTSPPlaybackState: Equatable {
+    case connecting
+    case buffering
+    case playing
+    case reconnecting(seconds: Int)
+    case failed
+
+    var title: String {
+        switch self {
+        case .connecting:
+            return "Connecting…"
+        case .buffering:
+            return "Buffering…"
+        case .playing:
+            return ""
+        case .reconnecting(let seconds):
+            return "Reconnecting in \(seconds)s…"
+        case .failed:
+            return "Stream unavailable"
+        }
+    }
+
+    var status: SnapshotStatus {
+        switch self {
+        case .connecting, .buffering, .reconnecting:
+            return .loading
+        case .playing:
+            return .ok
+        case .failed:
+            return .failed
+        }
+    }
+}
+
 private enum RTSPVLCConfiguration {
     static let sharedLibrary = VLCLibrary(options: [
         "--rtsp-tcp",
@@ -32,6 +66,7 @@ struct RTSPStreamView: View {
     let isMuted: Bool
     var scalingMode: RTSPScalingMode = .fit
     let onStatusChange: (SnapshotStatus) -> Void
+    var onPlaybackStateChange: (RTSPPlaybackState) -> Void = { _ in }
     @State private var videoAspectRatio: CGFloat = 16.0 / 9.0
 
     var body: some View {
@@ -46,6 +81,7 @@ struct RTSPStreamView: View {
                     url: url,
                     isMuted: isMuted,
                     onStatusChange: onStatusChange,
+                    onPlaybackStateChange: onPlaybackStateChange,
                     onVideoSizeChange: updateVideoAspectRatio
                 )
                 .frame(width: baseSize.width, height: baseSize.height)
@@ -102,10 +138,15 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
     let url: URL?
     let isMuted: Bool
     let onStatusChange: (SnapshotStatus) -> Void
+    let onPlaybackStateChange: (RTSPPlaybackState) -> Void
     let onVideoSizeChange: (CGSize) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onStatusChange: onStatusChange, onVideoSizeChange: onVideoSizeChange)
+        Coordinator(
+            onStatusChange: onStatusChange,
+            onPlaybackStateChange: onPlaybackStateChange,
+            onVideoSizeChange: onVideoSizeChange
+        )
     }
 
 #if os(iOS)
@@ -147,22 +188,31 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
     final class Coordinator: NSObject, VLCMediaPlayerDelegate {
         private let player = VLCMediaPlayer(library: RTSPVLCConfiguration.sharedLibrary)
         private let onStatusChange: (SnapshotStatus) -> Void
+        private let onPlaybackStateChange: (RTSPPlaybackState) -> Void
         private let onVideoSizeChange: (CGSize) -> Void
         private var currentURL: URL?
         private var currentIsMuted = false
         private var reconnectTask: Task<Void, Never>?
+        private var videoReadyTask: Task<Void, Never>?
         private var isActive = false
         private var hasShownVideo = false
         private var reconnectDelayNanoseconds: UInt64 = 2_000_000_000
 
         init(
             onStatusChange: @escaping (SnapshotStatus) -> Void,
+            onPlaybackStateChange: @escaping (RTSPPlaybackState) -> Void,
             onVideoSizeChange: @escaping (CGSize) -> Void
         ) {
             self.onStatusChange = onStatusChange
+            self.onPlaybackStateChange = onPlaybackStateChange
             self.onVideoSizeChange = onVideoSizeChange
             super.init()
             player.delegate = self
+        }
+
+        deinit {
+            reconnectTask?.cancel()
+            videoReadyTask?.cancel()
         }
 
         func attach(to view: VLCPlatformView) {
@@ -184,6 +234,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             guard didURLChange else { return }
 
             reconnectTask?.cancel()
+            videoReadyTask?.cancel()
             currentURL = url
             hasShownVideo = false
             reconnectDelayNanoseconds = 2_000_000_000
@@ -198,14 +249,17 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             let media = VLCMedia(url: url)
             configure(media: media)
             player.media = media
-            publish(.loading)
+            publish(.connecting)
             player.play()
+            waitForVideoOutput()
         }
 
         func stop() {
             isActive = false
             reconnectTask?.cancel()
             reconnectTask = nil
+            videoReadyTask?.cancel()
+            videoReadyTask = nil
             reconnectDelayNanoseconds = 2_000_000_000
             player.stop()
             player.media = nil
@@ -213,24 +267,33 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
 
         func mediaPlayerStateChanged(_ notification: Notification) {
             switch player.state {
-            case .opening, .buffering:
-                if !hasShownVideo {
-                    publish(.loading)
+            case .opening:
+                if markPlayingIfVideoIsAvailable() {
+                    return
+                } else if !hasShownVideo {
+                    publish(.connecting)
+                }
+            case .buffering:
+                if markPlayingIfVideoIsAvailable() {
+                    return
+                } else if !hasShownVideo {
+                    publish(.buffering)
                 }
             case .playing, .paused, .esAdded:
                 reconnectTask?.cancel()
                 reconnectTask = nil
                 reconnectDelayNanoseconds = 2_000_000_000
-                hasShownVideo = true
                 publishVideoSizeIfAvailable()
-                publish(.ok)
+                waitForVideoOutput()
             case .error, .ended, .stopped:
+                videoReadyTask?.cancel()
+                videoReadyTask = nil
                 hasShownVideo = false
                 publish(.failed)
                 scheduleReconnect()
             @unknown default:
                 if !hasShownVideo {
-                    publish(.loading)
+                    publish(.connecting)
                 }
             }
         }
@@ -238,8 +301,11 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         private func scheduleReconnect() {
             guard isActive, currentURL != nil else { return }
             reconnectTask?.cancel()
+            videoReadyTask?.cancel()
             let delayNanoseconds = reconnectDelayNanoseconds
+            let delaySeconds = max(1, Int(delayNanoseconds / 1_000_000_000))
             reconnectDelayNanoseconds = min(reconnectDelayNanoseconds * 2, 30_000_000_000)
+            publish(.reconnecting(seconds: delaySeconds))
             reconnectTask = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: delayNanoseconds)
                 guard !Task.isCancelled else { return }
@@ -249,10 +315,66 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
                     self.configure(media: media)
                     self.player.media = media
                     self.hasShownVideo = false
-                    self.publish(.loading)
+                    self.publish(.connecting)
                     self.player.play()
                 }
             }
+        }
+
+        private func waitForVideoOutput() {
+            guard !hasShownVideo else { return }
+            videoReadyTask?.cancel()
+            videoReadyTask = Task { [weak self] in
+                for _ in 0..<80 {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                    guard !Task.isCancelled else { return }
+                    let hasVideo = await MainActor.run {
+                        guard let self, self.isActive else { return false }
+                        return self.hasVideoOutput
+                    }
+                    if hasVideo {
+                        await MainActor.run {
+                            guard let self, self.isActive else { return }
+                            self.markPlayingIfVideoIsAvailable()
+                        }
+                        return
+                    }
+                }
+
+                await MainActor.run {
+                    guard let self, self.isActive, !self.hasShownVideo else { return }
+                    self.publish(.buffering)
+                }
+            }
+        }
+
+        @discardableResult
+        private func markPlayingIfVideoIsAvailable() -> Bool {
+            guard isActive, hasVideoOutput else { return false }
+            hasShownVideo = true
+            publishVideoSizeIfAvailable()
+            publish(.playing)
+            return true
+        }
+
+        private var hasVideoOutput: Bool {
+            let size = player.videoSize
+            if size.width > 0 && size.height > 0 {
+                return true
+            }
+            if player.hasVideoOut {
+                return true
+            }
+            if let media = player.media {
+                let statistics = media.statistics
+                return statistics.displayedPictures > 0
+                    || statistics.decodedVideo > 0
+                    || statistics.readBytes > 0
+                    || statistics.demuxReadBytes > 0
+                    || statistics.inputBitrate > 0
+                    || statistics.demuxBitrate > 0
+            }
+            return false
         }
 
         private func configure(media: VLCMedia) {
@@ -274,9 +396,10 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             }
         }
 
-        private func publish(_ status: SnapshotStatus) {
+        private func publish(_ state: RTSPPlaybackState) {
             Task { @MainActor in
-                onStatusChange(status)
+                onPlaybackStateChange(state)
+                onStatusChange(state.status)
             }
         }
     }

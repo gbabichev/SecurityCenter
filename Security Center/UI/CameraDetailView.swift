@@ -11,6 +11,7 @@ struct CameraDetailView: View {
     @ObservedObject var viewModel: AppViewModel
     let camera: CameraConfig
     @State private var streamStatus: SnapshotStatus = .loading
+    @State private var rtspPlaybackState: RTSPPlaybackState = .connecting
 
     var body: some View {
         GeometryReader { proxy in
@@ -40,15 +41,18 @@ struct CameraDetailView: View {
         }
         .onChange(of: camera.feedMode) {
             streamStatus = .loading
+            rtspPlaybackState = .connecting
         }
         .onChange(of: viewModel.isQuietHoursActive) { _, isActive in
             streamStatus = isActive ? .ok : .loading
+            rtspPlaybackState = .connecting
         }
         .onChange(of: camera.snapshotURL) {
             streamStatus = .loading
         }
         .onChange(of: camera.rtspURL) {
             streamStatus = .loading
+            rtspPlaybackState = .connecting
         }
         .hideCursorWhenIdle(enabled: !viewModel.showSettings)
     }
@@ -63,11 +67,20 @@ struct CameraDetailView: View {
                 pollingIntervalSeconds: camera.snapshotPollingIntervalSeconds
             ) { status in
                 streamStatus = status
+                viewModel.updatePlaybackAvailability(for: camera.id, status: status)
             }
         case .rtsp:
-            RTSPStreamView(url: camera.rtspURL, isMuted: camera.isMuted) { status in
-                streamStatus = status
-            }
+            RTSPStreamView(
+                url: camera.rtspURL,
+                isMuted: camera.isMuted,
+                onStatusChange: { status in
+                    streamStatus = status
+                    viewModel.updatePlaybackAvailability(for: camera.id, status: status)
+                },
+                onPlaybackStateChange: { state in
+                    rtspPlaybackState = state
+                }
+            )
         }
     }
 
@@ -116,7 +129,7 @@ struct CameraDetailView: View {
         case .snapshotPolling:
             "Loading snapshot…"
         case .rtsp:
-            "Opening live stream…"
+            rtspPlaybackState.title
         }
     }
 

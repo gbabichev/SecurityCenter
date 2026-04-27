@@ -88,6 +88,7 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var isQuietHoursActive = false
     private var quietHoursManualOverride: Bool?
     private var lastScheduledQuietHoursActive: Bool?
+    private var playbackAvailabilityOverrides: [CameraConfig.ID: Bool] = [:]
 
     init() {
         loadGrids()
@@ -124,8 +125,22 @@ final class AppViewModel: ObservableObject {
         quietHoursManualOverride == true && !quietHoursScheduleOverridesManual ? nil : quietHours.endLabel
     }
 
-    func updateAvailability(for cameraID: CameraConfig.ID, isAvailable: Bool) {
+    func updateProbeAvailability(for cameraID: CameraConfig.ID, isAvailable: Bool) {
+        if let playbackAvailability = playbackAvailabilityOverrides[cameraID] {
+            availability[cameraID] = playbackAvailability
+            return
+        }
         availability[cameraID] = isAvailable
+    }
+
+    func updatePlaybackAvailability(for cameraID: CameraConfig.ID, status: SnapshotStatus) {
+        let isAvailable = status == .ok
+        playbackAvailabilityOverrides[cameraID] = isAvailable
+        availability[cameraID] = isAvailable
+    }
+
+    func clearPlaybackAvailability(for cameraID: CameraConfig.ID) {
+        playbackAvailabilityOverrides[cameraID] = nil
     }
 
     func deleteCamera(_ camera: CameraConfig) {
@@ -224,6 +239,7 @@ final class AppViewModel: ObservableObject {
         quietHoursScheduleOverridesManual = payload.quietHoursScheduleOverridesManual ?? false
         quietHours = payload.quietHours ?? QuietHoursSchedule()
         availability = [:]
+        playbackAvailabilityOverrides = [:]
         restoreSelectedSidebarItem()
     }
 
@@ -390,6 +406,7 @@ final class AppViewModel: ObservableObject {
     private func reconcileSelectionAndAvailability() {
         let ids = Set(cameras.map(\.id))
         availability = availability.filter { ids.contains($0.key) }
+        playbackAvailabilityOverrides = playbackAvailabilityOverrides.filter { ids.contains($0.key) }
         selectedSidebarItem = normalizedSidebarItem(selectedSidebarItem)
         gridAssignments = normalizedGridAssignments(removing: ids)
     }

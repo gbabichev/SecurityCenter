@@ -115,7 +115,10 @@ struct GridDetailView: View {
         GridCameraContent(
             camera: camera,
             gridPictureStyle: viewModel.gridPictureStyle,
-            startupDelayNanoseconds: startupDelayNanoseconds(for: index)
+            startupDelayNanoseconds: startupDelayNanoseconds(for: index),
+            onStatusChange: { status in
+                viewModel.updatePlaybackAvailability(for: camera.id, status: status)
+            }
         )
     }
 
@@ -221,20 +224,32 @@ private struct GridCameraContent: View {
     let camera: CameraConfig
     let gridPictureStyle: GridPictureStyle
     let startupDelayNanoseconds: UInt64
+    let onStatusChange: (SnapshotStatus) -> Void
     @State private var isReady = false
+    @State private var status: SnapshotStatus = .loading
+    @State private var rtspPlaybackState: RTSPPlaybackState = .connecting
 
     var body: some View {
-        Group {
-            if !camera.isEnabled {
-                disabledContent
-            } else if isReady {
-                cameraContent
-            } else {
-                loadingContent
+        ZStack {
+            Group {
+                if !camera.isEnabled {
+                    disabledContent
+                } else if isReady {
+                    cameraContent
+                } else {
+                    startupLoadingContent
+                }
+            }
+
+            if camera.isEnabled {
+                statusOverlay
             }
         }
         .task(id: startupKey) {
             isReady = false
+            status = .loading
+            rtspPlaybackState = .connecting
+            onStatusChange(.loading)
             if startupDelayNanoseconds > 0 {
                 try? await Task.sleep(nanoseconds: startupDelayNanoseconds)
             }
@@ -251,13 +266,23 @@ private struct GridCameraContent: View {
                 url: camera.snapshotURL,
                 scalingMode: gridPictureStyle == .showWholePicture ? .fit : .stretch,
                 pollingIntervalSeconds: camera.snapshotPollingIntervalSeconds
-            ) { _ in }
+            ) { newStatus in
+                status = newStatus
+                onStatusChange(newStatus)
+            }
         case .rtsp:
             RTSPStreamView(
                 url: camera.rtspURL,
                 isMuted: camera.isMuted,
-                scalingMode: gridPictureStyle == .showWholePicture ? .fit : .stretch
-            ) { _ in }
+                scalingMode: gridPictureStyle == .showWholePicture ? .fit : .stretch,
+                onStatusChange: { newStatus in
+                    status = newStatus
+                    onStatusChange(newStatus)
+                },
+                onPlaybackStateChange: { state in
+                    rtspPlaybackState = state
+                }
+            )
             .id("\(camera.id.uuidString)-\(gridPictureStyle.rawValue)")
         }
     }
@@ -274,14 +299,51 @@ private struct GridCameraContent: View {
             )
     }
 
-    private var loadingContent: some View {
+    @ViewBuilder
+    private var statusOverlay: some View {
+        switch status {
+        case .loading:
+            loadingBadge(statusTitle)
+        case .failed:
+            loadingBadge(camera.feedMode == .rtsp ? "Stream unavailable" : "Snapshot unavailable", systemImage: "exclamationmark.triangle")
+        case .ok:
+            EmptyView()
+        }
+    }
+
+    private var startupLoadingContent: some View {
         Rectangle()
             .fill(.black)
-            .overlay(
+    }
+
+    private func loadingBadge(_ title: String, systemImage: String? = nil) -> some View {
+        HStack(spacing: 8) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.caption.weight(.semibold))
+            } else {
                 ProgressView()
                     .controlSize(.small)
                     .tint(.white)
-            )
+            }
+
+            Text(title)
+                .font(.caption.weight(.medium))
+                .lineLimit(1)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(.black.opacity(0.72), in: Capsule())
+    }
+
+    private var statusTitle: String {
+        switch camera.feedMode {
+        case .snapshotPolling:
+            return "Loading snapshot…"
+        case .rtsp:
+            return rtspPlaybackState.title
+        }
     }
 
     private var startupKey: GridCameraStartupKey {

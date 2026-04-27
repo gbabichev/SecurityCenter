@@ -136,7 +136,7 @@ struct ContentView: View {
                         }
                         .background(
                             AvailabilityProbe(camera: camera, isPaused: viewModel.isQuietHoursActive) { isAvailable in
-                                viewModel.updateAvailability(for: camera.id, isAvailable: isAvailable)
+                                viewModel.updateProbeAvailability(for: camera.id, isAvailable: isAvailable)
                             }
                         )
                     }

@@ -58,7 +58,7 @@ struct AvailabilityProbe: View {
                 return false
             }
         case .rtsp:
-            return await RTSPConnectionService.canReach(camera: camera)
+            return false
         }
     }
 }
