@@ -5,14 +5,31 @@
 //  Created by Codex on 4/27/26.
 //
 
-#if os(macOS)
 import SwiftUI
+#if os(iOS)
+import UIKit
+#else
+import AppKit
+#endif
 
 struct LiveAppIconView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var refreshID = UUID()
 
     var body: some View {
+#if os(iOS)
+        Image(uiImage: appIconImage)
+            .resizable()
+            .scaledToFit()
+            .id(refreshID)
+            .frame(width: 72, height: 72)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .onChange(of: colorScheme) { _, _ in
+                DispatchQueue.main.async {
+                    refreshID = UUID()
+                }
+            }
+#else
         Image(nsImage: NSApp.applicationIconImage)
             .resizable()
             .scaledToFit()
@@ -23,7 +40,21 @@ struct LiveAppIconView: View {
                     refreshID = UUID()
                 }
             }
+#endif
     }
+
+#if os(iOS)
+    private var appIconImage: UIImage {
+        guard let icons = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
+              let primaryIcon = icons["CFBundlePrimaryIcon"] as? [String: Any],
+              let iconFiles = primaryIcon["CFBundleIconFiles"] as? [String],
+              let iconName = iconFiles.last,
+              let image = UIImage(named: iconName) else {
+            return UIImage()
+        }
+        return image
+    }
+#endif
 }
 
 struct AboutView: View {
@@ -52,27 +83,7 @@ struct AboutView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            if let devPhoto = NSImage(named: "gbabichev") {
-                HStack(spacing: 12) {
-                    Image(nsImage: devPhoto)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 64, height: 64)
-                        .offset(y: 6)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.secondary.opacity(0.2), lineWidth: 1))
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("George Babichev")
-                            .font(.headline)
-                        if let developerWebsiteURL {
-                            Link("georgebabichev.com", destination: developerWebsiteURL)
-                                .font(.subheadline)
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            developerCard
 
             Divider()
 
@@ -104,7 +115,46 @@ struct AboutView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(24)
+#if os(macOS)
         .frame(width: 420)
+#else
+        .frame(maxWidth: .infinity)
+#endif
+    }
+
+    @ViewBuilder
+    private var developerCard: some View {
+        if let devPhoto = developerPhoto {
+            HStack(spacing: 12) {
+                devPhoto
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 64, height: 64)
+                    .offset(y: 6)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.secondary.opacity(0.2), lineWidth: 1))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("George Babichev")
+                        .font(.headline)
+                    if let developerWebsiteURL {
+                        Link("georgebabichev.com", destination: developerWebsiteURL)
+                            .font(.subheadline)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var developerPhoto: Image? {
+#if os(iOS)
+        guard let image = UIImage(named: "gbabichev") else { return nil }
+        return Image(uiImage: image)
+#else
+        guard let image = NSImage(named: "gbabichev") else { return nil }
+        return Image(nsImage: image)
+#endif
     }
 
     private var appVersion: String {
@@ -157,6 +207,7 @@ private struct AboutLinkRow: View {
     }
 }
 
+#if os(macOS)
 struct AboutOverlayView: View {
     @Binding var isPresented: Bool
 

@@ -43,6 +43,7 @@ struct CameraSettingsView: View {
 #if os(iOS)
     @State private var showingImportPicker = false
     @State private var showingExportPicker = false
+    @State private var showingAbout = false
     @State private var exportDocument = ConfigurationJSONDocument(data: Data())
     @State private var configurationAlert: ConfigurationAlert?
 #endif
@@ -155,6 +156,23 @@ struct CameraSettingsView: View {
         .sheet(isPresented: $showingCameraEditorSheet) {
             cameraEditorSheet
         }
+        .sheet(isPresented: $showingAbout) {
+            NavigationStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        AboutView()
+                    }
+                    .padding(.top, 12)
+                }
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") {
+                            showingAbout = false
+                        }
+                    }
+                }
+            }
+        }
         .fileImporter(
             isPresented: $showingImportPicker,
             allowedContentTypes: [.json],
@@ -250,24 +268,35 @@ struct CameraSettingsView: View {
                 quietHoursSettingsBlock
 
                 fieldBlock(title: "Configuration", caption: "Import or export your app settings and cameras as JSON.") {
-                    HStack(spacing: 10) {
+                    VStack(spacing: 10) {
                         Button {
-                            showingImportPicker = true
+                            showingAbout = true
                         } label: {
-                            Label("Import", systemImage: "square.and.arrow.down")
+                            Label("About", systemImage: "info.circle")
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                         }
                         .buttonStyle(.bordered)
 
-                        Button {
-                            exportConfiguration()
-                        } label: {
-                            Label("Export", systemImage: "square.and.arrow.up")
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
+                        HStack(spacing: 10) {
+                            Button {
+                                showingImportPicker = true
+                            } label: {
+                                Label("Import", systemImage: "square.and.arrow.down")
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button {
+                                exportConfiguration()
+                            } label: {
+                                Label("Export", systemImage: "square.and.arrow.up")
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                            }
+                            .buttonStyle(.borderedProminent)
                         }
-                        .buttonStyle(.borderedProminent)
                     }
                 }
             }
