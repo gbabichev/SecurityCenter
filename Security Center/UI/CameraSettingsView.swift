@@ -23,6 +23,7 @@ struct CameraSettingsView: View {
 
     @ObservedObject var viewModel: AppViewModel
     let initialCameraID: CameraConfig.ID?
+    let startsAddingCamera: Bool
     @Environment(\.dismiss) private var dismiss
     @State private var draft = CameraConfig.emptyDraft
     @State private var selectedCameraID: CameraConfig.ID?
@@ -38,6 +39,7 @@ struct CameraSettingsView: View {
     @State private var showQuietHoursInToolbarDraft = false
     @State private var quietHoursScheduleOverridesManualDraft = false
     @State private var showingCameraEditorSheet = false
+    @State private var didHandleInitialPresentation = false
 #if os(iOS)
     @State private var showingImportPicker = false
     @State private var showingExportPicker = false
@@ -70,7 +72,7 @@ struct CameraSettingsView: View {
         .padding(16)
         .onAppear {
             syncAppSettingsDraft()
-            openInitialCameraIfNeeded()
+            handleInitialPresentationIfNeeded()
         }
         .onChange(of: draft) { _, _ in
             guard !editorState.isValidating else { return }
@@ -128,7 +130,7 @@ struct CameraSettingsView: View {
         .padding(16)
         .onAppear {
             syncAppSettingsDraft()
-            openInitialCameraIfNeeded()
+            handleInitialPresentationIfNeeded()
         }
         .onChange(of: draft) { _, _ in
             guard !editorState.isValidating else { return }
@@ -1398,7 +1400,15 @@ struct CameraSettingsView: View {
         showingCameraEditorSheet = true
     }
 
-    private func openInitialCameraIfNeeded() {
+    private func handleInitialPresentationIfNeeded() {
+        guard !didHandleInitialPresentation else { return }
+        didHandleInitialPresentation = true
+
+        if startsAddingCamera {
+            beginAddingCamera()
+            return
+        }
+
         guard let initialCameraID,
               let camera = viewModel.cameras.first(where: { $0.id == initialCameraID }) else {
             return

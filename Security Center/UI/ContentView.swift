@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var showingNewGridSheet = false
     @State private var editingGrid: GridLayout?
     @State private var settingsInitialCameraID: CameraConfig.ID?
+    @State private var settingsStartsAddingCamera = false
     @State private var newGridName = ""
     @State private var newGridColumns = 2
     @State private var newGridRows = 2
@@ -30,7 +31,9 @@ struct ContentView: View {
             sidebar
         } detail: {
             NavigationStack {
-                if let selectedCamera = viewModel.selectedCamera {
+                if viewModel.cameras.isEmpty {
+                    noCamerasEmptyState
+                } else if let selectedCamera = viewModel.selectedCamera {
                     CameraDetailView(viewModel: viewModel, camera: selectedCamera)
                 } else if let selectedGrid = viewModel.selectedGrid {
                     GridDetailView(viewModel: viewModel, layout: selectedGrid)
@@ -58,7 +61,11 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $viewModel.showSettings) {
-            CameraSettingsView(viewModel: viewModel, initialCameraID: settingsInitialCameraID)
+            CameraSettingsView(
+                viewModel: viewModel,
+                initialCameraID: settingsInitialCameraID,
+                startsAddingCamera: settingsStartsAddingCamera
+            )
         }
         .sheet(isPresented: $showingNewGridSheet) {
             newGridSheet
@@ -66,9 +73,27 @@ struct ContentView: View {
         .onChange(of: viewModel.showSettings) { _, isPresented in
             if !isPresented {
                 settingsInitialCameraID = nil
+                settingsStartsAddingCamera = false
             }
         }
         .preferredColorScheme(viewModel.appTheme.colorScheme)
+    }
+
+    private var noCamerasEmptyState: some View {
+        ContentUnavailableView {
+            Label("No Cameras", systemImage: "video.badge.plus")
+        } description: {
+            Text("Add a camera to start building your security view.")
+        } actions: {
+            Button {
+                settingsInitialCameraID = nil
+                settingsStartsAddingCamera = true
+                viewModel.showSettings = true
+            } label: {
+                Label("Add Camera", systemImage: "plus.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+        }
     }
 
     private var sidebar: some View {
@@ -101,6 +126,7 @@ struct ContentView: View {
                         .contextMenu {
                             Button("Edit") {
                                 settingsInitialCameraID = camera.id
+                                settingsStartsAddingCamera = false
                                 viewModel.showSettings = true
                             }
 

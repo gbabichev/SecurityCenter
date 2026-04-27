@@ -395,6 +395,7 @@ final class AppViewModel: ObservableObject {
     }
 
     private func normalizedSidebarItem(_ item: SidebarItem?) -> SidebarItem? {
+        guard !cameras.isEmpty else { return nil }
         guard let item else { return nil }
         switch item {
         case .camera(let cameraID):
