@@ -34,6 +34,7 @@ struct CameraSettingsView: View {
     @State private var showingDeleteCameraConfirmation = false
     @State private var didCopySourceURL = false
     @State private var appThemeDraft: AppTheme = .system
+    @State private var viewBackgroundStyleDraft: ViewBackgroundStyle = .systemDefault
     @State private var gridPictureStyleDraft: GridPictureStyle = .fillEachBox
     @State private var quietHoursDraft = QuietHoursSchedule()
     @State private var showQuietHoursInToolbarDraft = false
@@ -225,6 +226,23 @@ struct CameraSettingsView: View {
                 Divider()
 
                 SettingsRow(
+                    "View Background",
+                    systemImage: "rectangle.fill",
+                    subtitle: viewBackgroundStyleDraft.title
+                ) {
+                    Picker("View Background", selection: $viewBackgroundStyleDraft) {
+                        ForEach(ViewBackgroundStyle.allCases) { style in
+                            Text(style.title)
+                                .tag(style)
+                        }
+                    }
+                    .frame(maxWidth: 360)
+                    .pickerStyle(.segmented)
+                }
+
+                Divider()
+
+                SettingsRow(
                     "Camera Grid",
                     systemImage: "square.grid.2x2",
                     subtitle: gridPictureStyleDraft.description
@@ -249,6 +267,14 @@ struct CameraSettingsView: View {
                     optionButtons(
                         selection: $appThemeDraft,
                         options: AppTheme.allCases,
+                        columns: 3
+                    ) { $0.title }
+                }
+
+                fieldBlock(title: "View Background", caption: "Choose the background behind camera views.") {
+                    optionButtons(
+                        selection: $viewBackgroundStyleDraft,
+                        options: ViewBackgroundStyle.allCases,
                         columns: 3
                     ) { $0.title }
                 }
@@ -1126,6 +1152,7 @@ struct CameraSettingsView: View {
 
     private var hasUnsavedAppSettingsChanges: Bool {
         appThemeDraft != viewModel.appTheme
+            || viewBackgroundStyleDraft != viewModel.viewBackgroundStyle
             || gridPictureStyleDraft != viewModel.gridPictureStyle
             || quietHoursDraft != viewModel.quietHours
             || showQuietHoursInToolbarDraft != viewModel.showQuietHoursInToolbar
@@ -1491,6 +1518,7 @@ struct CameraSettingsView: View {
 
     private func saveAppSettings() {
         viewModel.appTheme = appThemeDraft
+        viewModel.viewBackgroundStyle = viewBackgroundStyleDraft
         viewModel.gridPictureStyle = gridPictureStyleDraft
         viewModel.quietHours = quietHoursDraft
         viewModel.showQuietHoursInToolbar = showQuietHoursInToolbarDraft
@@ -1499,6 +1527,7 @@ struct CameraSettingsView: View {
 
     private func syncAppSettingsDraft() {
         appThemeDraft = viewModel.appTheme
+        viewBackgroundStyleDraft = viewModel.viewBackgroundStyle
         gridPictureStyleDraft = viewModel.gridPictureStyle
         quietHoursDraft = viewModel.quietHours
         showQuietHoursInToolbarDraft = viewModel.showQuietHoursInToolbar

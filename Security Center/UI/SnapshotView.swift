@@ -17,6 +17,7 @@ struct SnapshotView: View {
     let url: URL?
     var scalingMode: SnapshotScalingMode = .fit
     var pollingIntervalSeconds = 1
+    var backgroundColor: Color?
     @State private var image: PlatformImage?
     let onStatusChange: (SnapshotStatus) -> Void
 
@@ -26,13 +27,17 @@ struct SnapshotView: View {
                 snapshotImage(image)
             } else {
                 Rectangle()
-                    .fill(.quaternary)
+                    .fill(backgroundFillStyle)
                 Image(systemName: "photo")
                     .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
+        .background {
+            if let backgroundColor {
+                backgroundColor
+            }
+        }
         .task(id: SnapshotTaskKey(url: url, pollingIntervalSeconds: normalizedPollingIntervalSeconds)) {
             image = nil
             onStatusChange(.loading)
@@ -124,6 +129,13 @@ struct SnapshotView: View {
 
     private var normalizedPollingIntervalSeconds: Int {
         CameraConfig.clampedSnapshotPollingInterval(pollingIntervalSeconds)
+    }
+
+    private var backgroundFillStyle: AnyShapeStyle {
+        if let backgroundColor {
+            return AnyShapeStyle(backgroundColor)
+        }
+        return AnyShapeStyle(.quaternary)
     }
 }
 

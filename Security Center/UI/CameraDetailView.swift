@@ -16,8 +16,7 @@ struct CameraDetailView: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                Color.black
-                    .ignoresSafeArea()
+                viewBackground
 
                 ZStack(alignment: overlayAlignment) {
                     if viewModel.isQuietHoursActive {
@@ -64,7 +63,8 @@ struct CameraDetailView: View {
             SnapshotView(
                 url: camera.snapshotURL,
                 scalingMode: .fit,
-                pollingIntervalSeconds: camera.snapshotPollingIntervalSeconds
+                pollingIntervalSeconds: camera.snapshotPollingIntervalSeconds,
+                backgroundColor: viewModel.viewBackgroundStyle.color
             ) { status in
                 streamStatus = status
                 viewModel.updatePlaybackAvailability(for: camera.id, status: status)
@@ -73,6 +73,7 @@ struct CameraDetailView: View {
             RTSPStreamView(
                 url: camera.rtspURL,
                 isMuted: camera.isMuted,
+                backgroundColor: viewModel.viewBackgroundStyle.color,
                 onStatusChange: { status in
                     streamStatus = status
                     viewModel.updatePlaybackAvailability(for: camera.id, status: status)
@@ -81,6 +82,13 @@ struct CameraDetailView: View {
                     rtspPlaybackState = state
                 }
             )
+        }
+    }
+
+    @ViewBuilder
+    private var viewBackground: some View {
+        if let color = viewModel.viewBackgroundStyle.color {
+            color.ignoresSafeArea()
         }
     }
 

@@ -65,6 +65,7 @@ struct RTSPStreamView: View {
     let url: URL?
     let isMuted: Bool
     var scalingMode: RTSPScalingMode = .fit
+    var backgroundColor: Color?
     let onStatusChange: (SnapshotStatus) -> Void
     var onPlaybackStateChange: (RTSPPlaybackState) -> Void = { _ in }
     @State private var videoAspectRatio: CGFloat = 16.0 / 9.0
@@ -75,11 +76,14 @@ struct RTSPStreamView: View {
             let scale = stretchScale(in: proxy.size, baseSize: baseSize)
 
             ZStack {
-                Color.black
+                if let backgroundColor {
+                    backgroundColor
+                }
 
                 VLCPlayerContainer(
                     url: url,
                     isMuted: isMuted,
+                    backgroundColor: backgroundColor,
                     onStatusChange: onStatusChange,
                     onPlaybackStateChange: onPlaybackStateChange,
                     onVideoSizeChange: updateVideoAspectRatio
@@ -89,7 +93,11 @@ struct RTSPStreamView: View {
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
-            .background(Color.black)
+            .background {
+                if let backgroundColor {
+                    backgroundColor
+                }
+            }
         }
     }
 
@@ -137,6 +145,7 @@ private typealias VLCPlatformView = VLCVideoView
 private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
     let url: URL?
     let isMuted: Bool
+    let backgroundColor: Color?
     let onStatusChange: (SnapshotStatus) -> Void
     let onPlaybackStateChange: (RTSPPlaybackState) -> Void
     let onVideoSizeChange: (CGSize) -> Void
@@ -152,13 +161,14 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
 #if os(iOS)
     func makeUIView(context: Context) -> VLCPlatformView {
         let view = VLCPlatformView()
-        view.backgroundColor = .black
+        view.backgroundColor = backgroundColor.map(UIColor.init) ?? .clear
         context.coordinator.attach(to: view)
         context.coordinator.update(url: url, isMuted: isMuted)
         return view
     }
 
     func updateUIView(_ view: VLCPlatformView, context: Context) {
+        view.backgroundColor = backgroundColor.map(UIColor.init) ?? .clear
         context.coordinator.attach(to: view)
         context.coordinator.update(url: url, isMuted: isMuted)
     }
@@ -169,13 +179,14 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
 #else
     func makeNSView(context: Context) -> VLCPlatformView {
         let view = VLCPlatformView()
-        view.backColor = .black
+        view.backColor = backgroundColor.map(NSColor.init) ?? .clear
         context.coordinator.attach(to: view)
         context.coordinator.update(url: url, isMuted: isMuted)
         return view
     }
 
     func updateNSView(_ view: VLCPlatformView, context: Context) {
+        view.backColor = backgroundColor.map(NSColor.init) ?? .clear
         context.coordinator.attach(to: view)
         context.coordinator.update(url: url, isMuted: isMuted)
     }

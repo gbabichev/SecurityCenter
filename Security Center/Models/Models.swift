@@ -238,6 +238,36 @@ enum AppTheme: String, CaseIterable, Identifiable, Hashable, Codable {
     }
 }
 
+enum ViewBackgroundStyle: String, CaseIterable, Identifiable, Hashable, Codable {
+    case systemDefault = "default"
+    case black
+    case gray
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .systemDefault:
+            return "Default"
+        case .black:
+            return "Black"
+        case .gray:
+            return "Gray"
+        }
+    }
+
+    var color: Color? {
+        switch self {
+        case .systemDefault:
+            return nil
+        case .black:
+            return .black
+        case .gray:
+            return .gray
+        }
+    }
+}
+
 struct QuietHoursSchedule: Codable, Hashable {
     var isEnabled: Bool = false
     var startMinutes: Int = 22 * 60

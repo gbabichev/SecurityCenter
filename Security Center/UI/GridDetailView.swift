@@ -31,8 +31,7 @@ struct GridDetailView: View {
             )
 
             ZStack {
-                Color.black
-                    .ignoresSafeArea()
+                viewBackground
 
                 if viewModel.isQuietHoursActive {
                     QuietHoursSaverView(endLabel: viewModel.quietHoursSaverEndLabel)
@@ -66,7 +65,7 @@ struct GridDetailView: View {
                 gridContent(for: camera, index: index)
             } else {
                 Rectangle()
-                    .fill(.black)
+                    .fill(viewModel.viewBackgroundStyle.color ?? .clear)
                     .overlay(
                         Rectangle()
                             .strokeBorder(.white.opacity(0.08), lineWidth: 1)
@@ -115,6 +114,7 @@ struct GridDetailView: View {
         GridCameraContent(
             camera: camera,
             gridPictureStyle: viewModel.gridPictureStyle,
+            backgroundColor: viewModel.viewBackgroundStyle.color,
             startupDelayNanoseconds: startupDelayNanoseconds(for: index),
             onStatusChange: { status in
                 viewModel.updatePlaybackAvailability(for: camera.id, status: status)
@@ -124,6 +124,13 @@ struct GridDetailView: View {
 
     private func startupDelayNanoseconds(for index: Int) -> UInt64 {
         UInt64(min(index, 12)) * 250_000_000
+    }
+
+    @ViewBuilder
+    private var viewBackground: some View {
+        if let color = viewModel.viewBackgroundStyle.color {
+            color.ignoresSafeArea()
+        }
     }
 
     private func emptyCellMenu(for index: Int) -> some View {
@@ -223,6 +230,7 @@ private struct GridSelectionMenuItem: Identifiable {
 private struct GridCameraContent: View {
     let camera: CameraConfig
     let gridPictureStyle: GridPictureStyle
+    let backgroundColor: Color?
     let startupDelayNanoseconds: UInt64
     let onStatusChange: (SnapshotStatus) -> Void
     @State private var isReady = false
@@ -265,7 +273,8 @@ private struct GridCameraContent: View {
             SnapshotView(
                 url: camera.snapshotURL,
                 scalingMode: gridPictureStyle == .showWholePicture ? .fit : .stretch,
-                pollingIntervalSeconds: camera.snapshotPollingIntervalSeconds
+                pollingIntervalSeconds: camera.snapshotPollingIntervalSeconds,
+                backgroundColor: backgroundColor
             ) { newStatus in
                 status = newStatus
                 onStatusChange(newStatus)
@@ -275,6 +284,7 @@ private struct GridCameraContent: View {
                 url: camera.rtspURL,
                 isMuted: camera.isMuted,
                 scalingMode: gridPictureStyle == .showWholePicture ? .fit : .stretch,
+                backgroundColor: backgroundColor,
                 onStatusChange: { newStatus in
                     status = newStatus
                     onStatusChange(newStatus)
@@ -289,7 +299,7 @@ private struct GridCameraContent: View {
 
     private var disabledContent: some View {
         Rectangle()
-            .fill(.black)
+            .fill(backgroundColor ?? .clear)
             .overlay(
                 ContentUnavailableView(
                     "Disabled",
@@ -313,7 +323,7 @@ private struct GridCameraContent: View {
 
     private var startupLoadingContent: some View {
         Rectangle()
-            .fill(.black)
+            .fill(backgroundColor ?? .clear)
     }
 
     private func loadingBadge(_ title: String, systemImage: String? = nil) -> some View {
