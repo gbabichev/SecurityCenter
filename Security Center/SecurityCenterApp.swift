@@ -9,17 +9,20 @@ import SwiftUI
 
 @main
 struct SecurityCenterApp: App {
+    private let mainWindowID = "main"
     @StateObject private var viewModel = AppViewModel()
 #if os(macOS)
     @NSApplicationDelegateAdaptor(SecurityCenterAppDelegate.self) private var appDelegate
+    @Environment(\.openWindow) private var openWindow
     @FocusedValue(\.showConfigurationTransferAction) private var showConfigurationTransferAction
     @State private var showingAbout = false
 #endif
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: mainWindowID) {
             ContentView(viewModel: viewModel)
 #if os(macOS)
+                .frame(minWidth: 400, minHeight: 500)
                 .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
                 .overlay {
                     if showingAbout {
@@ -43,6 +46,13 @@ struct SecurityCenterApp: App {
                 } label: {
                     Label("Check for Updates…", systemImage: "arrow.triangle.2.circlepath.circle")
                 }
+            }
+
+            CommandGroup(replacing: .newItem) {
+                Button("New Window", systemImage: "macwindow.badge.plus") {
+                    openWindow(id: mainWindowID)
+                }
+                .keyboardShortcut("n")
             }
 
             CommandGroup(after: .newItem) {
