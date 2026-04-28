@@ -57,7 +57,7 @@ struct SecurityCenterApp: App {
 #endif
         }
 #if os(macOS)
-        .windowStyle(.hiddenTitleBar)
+        //.windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button("About Security Center") {

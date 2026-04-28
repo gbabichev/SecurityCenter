@@ -52,6 +52,7 @@ struct GridDetailView: View {
                 }
             }
         }
+        .navigationTitle(layout.name)
         .hideCursorWhenIdle(enabled: !viewModel.showSettings)
     }
 

@@ -18,7 +18,7 @@ struct CameraDetailView: View {
             ZStack {
                 viewBackground
 
-                ZStack(alignment: overlayAlignment) {
+                ZStack {
                     if viewModel.isQuietHoursActive {
                         quietHoursView
                     } else if camera.isEnabled {
@@ -28,7 +28,6 @@ struct CameraDetailView: View {
                     }
 
                     streamStatusOverlay
-                    cameraOverlay
                 }
                 .padding(viewModel.isQuietHoursActive ? 0 : 16)
                 .frame(
@@ -53,6 +52,7 @@ struct CameraDetailView: View {
             streamStatus = .loading
             rtspPlaybackState = .connecting
         }
+        .navigationTitle(camera.displayName)
         .hideCursorWhenIdle(enabled: !viewModel.showSettings)
     }
 
@@ -164,30 +164,4 @@ struct CameraDetailView: View {
         }
     }
 
-    private var overlayAlignment: Alignment {
-        switch camera.nameLocation {
-        case .topLeft:
-            .topLeading
-        case .topRight:
-            .topTrailing
-        case .bottomLeft:
-            .bottomLeading
-        case .bottomRight:
-            .bottomTrailing
-        }
-    }
-
-    @ViewBuilder
-    private var cameraOverlay: some View {
-        if !viewModel.isQuietHoursActive && camera.showsNameInDisplay {
-            Text(camera.displayName)
-                .font(.headline)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(.black.opacity(0.7), in: Capsule())
-                .padding(20)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: overlayAlignment)
-        }
-    }
 }
