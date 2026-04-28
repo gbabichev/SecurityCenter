@@ -10,6 +10,7 @@ import SwiftUI
 struct CameraDetailView: View {
     @ObservedObject var viewModel: AppViewModel
     let camera: CameraConfig
+    let isSettingsPresented: Bool
     @State private var streamStatus: SnapshotStatus = .loading
     @State private var rtspPlaybackState: RTSPPlaybackState = .connecting
 
@@ -53,7 +54,7 @@ struct CameraDetailView: View {
             rtspPlaybackState = .connecting
         }
         .navigationTitle(camera.displayName)
-        .hideCursorWhenIdle(enabled: !viewModel.showSettings)
+        .hideCursorWhenIdle(enabled: !isSettingsPresented)
     }
 
     @ViewBuilder

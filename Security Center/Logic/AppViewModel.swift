@@ -84,7 +84,6 @@ final class AppViewModel: ObservableObject {
             refreshQuietHoursState()
         }
     }
-    @Published var showSettings = false
     @Published var selectedSidebarItem: SidebarItem? {
         didSet {
             persistSelectedSidebarItem()
@@ -159,7 +158,6 @@ final class AppViewModel: ObservableObject {
     func addGrid(name: String = "", columns: Int, rows: Int) -> GridLayout {
         let grid = GridLayout(name: name, columns: columns, rows: rows)
         grids.append(grid)
-        selectedSidebarItem = .grid(grid.id)
         return grid
     }
 
@@ -179,7 +177,6 @@ final class AppViewModel: ObservableObject {
             assignments = Array(assignments.prefix(targetCount))
         }
         gridAssignments[grid.id] = assignments
-        selectedSidebarItem = .grid(updatedGrid.id)
         return updatedGrid
     }
 

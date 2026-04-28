@@ -13,6 +13,7 @@ import AppKit
 struct GridDetailView: View {
     @ObservedObject var viewModel: AppViewModel
     let layout: GridLayout
+    let isSettingsPresented: Bool
 #if os(iOS)
     @State private var activeSelectionIndex: Int?
 #endif
@@ -53,7 +54,7 @@ struct GridDetailView: View {
             }
         }
         .navigationTitle(layout.name)
-        .hideCursorWhenIdle(enabled: !viewModel.showSettings)
+        .hideCursorWhenIdle(enabled: !isSettingsPresented)
     }
 
     @ViewBuilder

@@ -68,13 +68,17 @@ struct SecurityCenterApp: App {
             }
 
             CommandGroup(after: .newItem) {
-                Button("Import JSON…") {
+                Button {
                     showingImportPicker = true
+                } label: {
+                    Label("Import JSON…", systemImage: "square.and.arrow.down")
                 }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
 
-                Button("Export JSON…") {
+                Button {
                     exportConfiguration()
+                } label: {
+                    Label("Export JSON…", systemImage: "square.and.arrow.up")
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
             }

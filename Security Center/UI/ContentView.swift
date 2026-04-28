@@ -9,6 +9,8 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var viewModel: AppViewModel
+    @State private var selectedSidebarItem: SidebarItem?
+    @State private var showingSettings = false
     @State private var showingNewGridSheet = false
     @State private var editingGrid: GridLayout?
     @State private var settingsInitialCameraID: CameraConfig.ID?
@@ -16,6 +18,11 @@ struct ContentView: View {
     @State private var newGridName = ""
     @State private var newGridColumns = 2
     @State private var newGridRows = 2
+
+    init(viewModel: AppViewModel) {
+        self.viewModel = viewModel
+        _selectedSidebarItem = State(initialValue: viewModel.selectedSidebarItem)
+    }
 
     var body: some View {
         #if os(macOS)
@@ -33,10 +40,10 @@ struct ContentView: View {
             NavigationStack {
                 if viewModel.cameras.isEmpty {
                     noCamerasEmptyState
-                } else if let selectedCamera = viewModel.selectedCamera {
-                    CameraDetailView(viewModel: viewModel, camera: selectedCamera)
-                } else if let selectedGrid = viewModel.selectedGrid {
-                    GridDetailView(viewModel: viewModel, layout: selectedGrid)
+                } else if let selectedCamera {
+                    CameraDetailView(viewModel: viewModel, camera: selectedCamera, isSettingsPresented: showingSettings)
+                } else if let selectedGrid {
+                    GridDetailView(viewModel: viewModel, layout: selectedGrid, isSettingsPresented: showingSettings)
                 } else {
                     ContentUnavailableView(
                         "Select a Camera",
@@ -60,7 +67,7 @@ struct ContentView: View {
                 }
             }
         }
-        .sheet(isPresented: $viewModel.showSettings) {
+        .sheet(isPresented: $showingSettings) {
             CameraSettingsView(
                 viewModel: viewModel,
                 initialCameraID: settingsInitialCameraID,
@@ -70,11 +77,17 @@ struct ContentView: View {
         .sheet(isPresented: $showingNewGridSheet) {
             newGridSheet
         }
-        .onChange(of: viewModel.showSettings) { _, isPresented in
+        .onChange(of: showingSettings) { _, isPresented in
             if !isPresented {
                 settingsInitialCameraID = nil
                 settingsStartsAddingCamera = false
             }
+        }
+        .onChange(of: viewModel.cameras.map(\.id)) {
+            normalizeWindowSelection()
+        }
+        .onChange(of: viewModel.grids.map(\.id)) {
+            normalizeWindowSelection()
         }
         .preferredColorScheme(viewModel.appTheme.colorScheme)
     }
@@ -88,7 +101,7 @@ struct ContentView: View {
             Button {
                 settingsInitialCameraID = nil
                 settingsStartsAddingCamera = true
-                viewModel.showSettings = true
+                showingSettings = true
             } label: {
                 Label("Add Camera", systemImage: "plus.circle.fill")
             }
@@ -97,7 +110,7 @@ struct ContentView: View {
     }
 
     private var sidebar: some View {
-        List(selection: $viewModel.selectedSidebarItem) {
+        List(selection: selectionBinding) {
             Section("Cameras") {
                 if viewModel.cameras.isEmpty {
                     Text("No Cameras")
@@ -127,7 +140,7 @@ struct ContentView: View {
                             Button("Edit") {
                                 settingsInitialCameraID = camera.id
                                 settingsStartsAddingCamera = false
-                                viewModel.showSettings = true
+                                showingSettings = true
                             }
 
                             Button("Delete", role: .destructive) {
@@ -179,7 +192,7 @@ struct ContentView: View {
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button {
-                    viewModel.showSettings = true
+                    showingSettings = true
                 } label: {
                     Label("Settings", systemImage: "gearshape")
                 }
@@ -240,10 +253,10 @@ struct ContentView: View {
                 Button(editingGrid == nil ? "Create" : "Save") {
                     if let grid = editingGrid {
                         let updatedGrid = viewModel.updateGrid(grid, name: newGridName, columns: newGridColumns, rows: newGridRows)
-                        viewModel.selectedSidebarItem = .grid(updatedGrid.id)
+                        selectSidebarItem(.grid(updatedGrid.id))
                     } else {
                         let grid = viewModel.addGrid(name: newGridName, columns: newGridColumns, rows: newGridRows)
-                        viewModel.selectedSidebarItem = .grid(grid.id)
+                        selectSidebarItem(.grid(grid.id))
                     }
                     dismissGridSheet()
                 }
@@ -325,6 +338,54 @@ struct ContentView: View {
             return "photo"
         case .rtsp:
             return "video"
+        }
+    }
+
+    private var selectionBinding: Binding<SidebarItem?> {
+        Binding {
+            selectedSidebarItem
+        } set: { newValue in
+            selectSidebarItem(newValue)
+        }
+    }
+
+    private var selectedCamera: CameraConfig? {
+        guard case let .camera(cameraID) = selectedSidebarItem else { return nil }
+        return viewModel.cameras.first { $0.id == cameraID }
+    }
+
+    private var selectedGrid: GridLayout? {
+        guard case let .grid(gridID) = selectedSidebarItem else { return nil }
+        return viewModel.grids.first { $0.id == gridID }
+    }
+
+    private func selectSidebarItem(_ item: SidebarItem?) {
+        let normalizedItem = normalizedSidebarItem(item)
+        selectedSidebarItem = normalizedItem
+        persistSelectedSidebarItem(normalizedItem)
+    }
+
+    private func normalizeWindowSelection() {
+        let normalizedItem = normalizedSidebarItem(selectedSidebarItem)
+        guard normalizedItem != selectedSidebarItem else { return }
+        selectedSidebarItem = normalizedItem
+    }
+
+    private func normalizedSidebarItem(_ item: SidebarItem?) -> SidebarItem? {
+        guard !viewModel.cameras.isEmpty else { return nil }
+        guard let item else { return nil }
+        switch item {
+        case .camera(let cameraID):
+            return viewModel.cameras.contains { $0.id == cameraID } ? item : nil
+        case .grid(let gridID):
+            return viewModel.grids.contains { $0.id == gridID } ? item : nil
+        }
+    }
+
+    private func persistSelectedSidebarItem(_ item: SidebarItem?) {
+        DispatchQueue.main.async {
+            guard selectedSidebarItem == item else { return }
+            viewModel.selectedSidebarItem = item
         }
     }
 }
