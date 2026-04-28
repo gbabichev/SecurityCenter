@@ -10,8 +10,9 @@
   >
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3f0e8">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f1719">
-  <link rel="icon" type="image/svg+xml" href="icon-light.svg">
-  <link rel="apple-touch-icon" href="icon-light.svg">
+  <link rel="icon" type="image/png" href="icon-light.png" media="(prefers-color-scheme: light)">
+  <link rel="icon" type="image/png" href="icon-dark.png" media="(prefers-color-scheme: dark)">
+  <link rel="apple-touch-icon" href="icon-light.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -23,9 +24,9 @@
       <nav class="topbar" aria-label="Primary">
         <a class="brand" href="#top" aria-label="Security Center home">
           <picture class="brand-mark">
-            <source srcset="icon-dark.svg" media="(prefers-color-scheme: dark)">
-            <source srcset="icon-light.svg" media="(prefers-color-scheme: light)">
-            <img src="icon-light.svg" alt="" width="56" height="56">
+            <source srcset="icon-dark.png" media="(prefers-color-scheme: dark)">
+            <source srcset="icon-light.png" media="(prefers-color-scheme: light)">
+            <img src="icon-light.png" alt="" width="56" height="56">
           </picture>
           <span>Security Center</span>
         </a>
@@ -59,13 +60,13 @@
         <div class="hero-visual reveal" aria-label="Security Center previews">
           <div class="screen-stack">
             <figure class="screen-card screen-main">
-              <img src="preview-grid.svg" alt="Saved camera grid preview" loading="eager">
+              <img src="mac1.jpg" alt="Security Center saved grid on macOS" loading="eager">
             </figure>
             <figure class="screen-card screen-side">
-              <img src="preview-camera.svg" alt="Single camera detail preview" loading="lazy">
+              <img src="mac2.jpg" alt="Security Center single camera view on macOS" loading="lazy">
             </figure>
             <figure class="screen-card screen-detail">
-              <img src="preview-settings.svg" alt="Settings and camera editor preview" loading="lazy">
+              <img src="iPad1.jpg" alt="Security Center running on iPad" loading="lazy">
             </figure>
           </div>
         </div>
@@ -77,6 +78,35 @@
         <p>
           Built for people who want a direct, local way to monitor cameras without turning setup and day-to-day use into a maintenance project.
         </p>
+      </section>
+
+      <section class="section screenshots" aria-label="Screenshots">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Screenshots</p>
+          <h2>The same setup, tuned for desk and couch.</h2>
+        </div>
+
+        <div class="screenshot-grid">
+          <figure class="screenshot-card screenshot-wide reveal">
+            <img src="mac1.jpg" alt="Saved camera grid on macOS" loading="lazy">
+            <figcaption>Saved grids on macOS</figcaption>
+          </figure>
+
+          <figure class="screenshot-card reveal">
+            <img src="mac2.jpg" alt="Single camera detail on macOS" loading="lazy">
+            <figcaption>Single-camera focus</figcaption>
+          </figure>
+
+          <figure class="screenshot-card reveal">
+            <img src="mac3.jpg" alt="Security Center app settings on macOS" loading="lazy">
+            <figcaption>Plain settings</figcaption>
+          </figure>
+
+          <figure class="screenshot-card screenshot-wide reveal">
+            <img src="iPad1.jpg" alt="Security Center camera monitoring on iPad" loading="lazy">
+            <figcaption>Touch-friendly iPad layout</figcaption>
+          </figure>
+        </div>
       </section>
 
       <section class="section" id="features">
