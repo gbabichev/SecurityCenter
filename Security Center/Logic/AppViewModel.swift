@@ -232,23 +232,121 @@ final class AppViewModel: ObservableObject {
         return try encoder.encode(payload)
     }
 
-    func importConfigurationData(_ data: Data) throws {
-        let decoder = JSONDecoder()
-        let payload = try decoder.decode(AppConfigurationPayload.self, from: data)
+    func previewConfigurationImport(_ data: Data) throws -> ConfigurationImportPreview {
+        let payload = try decodedConfigurationPayload(from: data)
         let importedGridState = importedGridState(from: payload)
+        return ConfigurationImportPreview(
+            cameras: payload.cameras.map { ConfigurationImportItem(id: $0.id, name: $0.displayName) },
+            grids: importedGridState.grids.map { ConfigurationImportItem(id: $0.id, name: $0.title) },
+            includesAppSettings: true,
+            includesQuietHours: payload.quietHours != nil ||
+                payload.showQuietHoursInToolbar != nil ||
+                payload.quietHoursScheduleOverridesManual != nil
+        )
+    }
 
-        cameras = payload.cameras
-        grids = importedGridState.grids
-        gridAssignments = importedGridState.assignments
-        gridPictureStyle = payload.gridPictureStyle
-        appTheme = payload.appTheme ?? .system
-        viewBackgroundStyle = payload.viewBackgroundStyle ?? .systemDefault
-        showQuietHoursInToolbar = payload.showQuietHoursInToolbar ?? false
-        quietHoursScheduleOverridesManual = payload.quietHoursScheduleOverridesManual ?? false
-        quietHours = payload.quietHours ?? QuietHoursSchedule()
-        availability = [:]
+    func importConfigurationData(_ data: Data, options: ConfigurationImportOptions = .additiveDefault) throws {
+        let payload = try decodedConfigurationPayload(from: data)
+        importConfigurationPayload(payload, options: options)
+    }
+
+    private func decodedConfigurationPayload(from data: Data) throws -> AppConfigurationPayload {
+        let decoder = JSONDecoder()
+        return try decoder.decode(AppConfigurationPayload.self, from: data)
+    }
+
+    private func importConfigurationPayload(_ payload: AppConfigurationPayload, options: ConfigurationImportOptions) {
+        let importedGridState = importedGridState(from: payload)
+        var importedCameraIDMap: [CameraConfig.ID: CameraConfig.ID] = [:]
+
+        if !options.selectedCameraIDs.isEmpty {
+            var existingNames = Set(cameras.map(\.displayName))
+            var nextCameras = cameras
+
+            for importedCamera in payload.cameras {
+                guard options.selectedCameraIDs.contains(importedCamera.id) else { continue }
+                var camera = importedCamera
+                let originalID = camera.id
+                if nextCameras.contains(where: { $0.id == camera.id }) {
+                    camera.id = UUID()
+                }
+                camera.name = uniqueImportedName(camera.displayName, existingNames: &existingNames)
+                nextCameras.append(camera)
+                importedCameraIDMap[originalID] = camera.id
+            }
+
+            cameras = nextCameras
+            for camera in nextCameras {
+                availability[camera.id] = camera.isEnabled
+            }
+        }
+
+        if !options.selectedGridIDs.isEmpty {
+            var existingNames = Set(grids.map(\.title))
+            var nextGrids = grids
+            var nextAssignments = gridAssignments
+            let existingCameraIDs = Set(cameras.map(\.id))
+
+            for importedGrid in importedGridState.grids {
+                guard options.selectedGridIDs.contains(importedGrid.id) else { continue }
+                let originalGridID = importedGrid.id
+                let assignments = importedGridState.assignments[originalGridID] ?? []
+                var grid = importedGrid
+
+                if nextGrids.contains(where: { $0.id == grid.id }) {
+                    grid = GridLayout(id: UUID(), name: grid.name, columns: grid.columns, rows: grid.rows)
+                }
+                grid.name = uniqueImportedName(grid.title, existingNames: &existingNames)
+                nextGrids.append(grid)
+
+                var remappedAssignments: [CameraConfig.ID?] = assignments.prefix(grid.maxItems).map { cameraID in
+                    guard let cameraID else { return nil }
+                    if let importedCameraID = importedCameraIDMap[cameraID] {
+                        return importedCameraID
+                    }
+                    return existingCameraIDs.contains(cameraID) ? cameraID : nil
+                }
+                if remappedAssignments.count < grid.maxItems {
+                    remappedAssignments.append(contentsOf: Array(repeating: nil, count: grid.maxItems - remappedAssignments.count))
+                }
+                nextAssignments[grid.id] = remappedAssignments
+            }
+
+            grids = nextGrids
+            gridAssignments = nextAssignments
+        }
+
+        if options.importsAppSettings {
+            gridPictureStyle = payload.gridPictureStyle
+            appTheme = payload.appTheme ?? .system
+            viewBackgroundStyle = payload.viewBackgroundStyle ?? .systemDefault
+        }
+
+        if options.importsQuietHours {
+            showQuietHoursInToolbar = payload.showQuietHoursInToolbar ?? false
+            quietHoursScheduleOverridesManual = payload.quietHoursScheduleOverridesManual ?? false
+            quietHours = payload.quietHours ?? QuietHoursSchedule()
+        }
+
         playbackAvailabilityOverrides = [:]
-        restoreSelectedSidebarItem()
+    }
+
+    private func uniqueImportedName(_ name: String, existingNames: inout Set<String>) -> String {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return name }
+        guard existingNames.contains(trimmedName) else {
+            existingNames.insert(trimmedName)
+            return name
+        }
+
+        var index = 2
+        var candidate = "\(trimmedName) Import"
+        while existingNames.contains(candidate) {
+            candidate = "\(trimmedName) Import \(index)"
+            index += 1
+        }
+        existingNames.insert(candidate)
+        return candidate
     }
 
     func validateAndSaveCamera(from draft: CameraConfig, editing existingID: CameraConfig.ID? = nil) async throws -> CameraConfig {
@@ -657,6 +755,30 @@ final class AppViewModel: ObservableObject {
 
 private struct GridAssignmentsPayload: Codable {
     let assignments: [String: [CameraConfig.ID?]]
+}
+
+struct ConfigurationImportOptions {
+    var selectedCameraIDs: Set<CameraConfig.ID> = []
+    var selectedGridIDs: Set<GridLayout.ID> = []
+    var importsAppSettings = false
+    var importsQuietHours = false
+
+    nonisolated static let additiveDefault = ConfigurationImportOptions()
+}
+
+struct ConfigurationImportItem: Identifiable, Hashable {
+    let id: UUID
+    let name: String
+}
+
+struct ConfigurationImportPreview {
+    let cameras: [ConfigurationImportItem]
+    let grids: [ConfigurationImportItem]
+    let includesAppSettings: Bool
+    let includesQuietHours: Bool
+
+    var cameraCount: Int { cameras.count }
+    var gridCount: Int { grids.count }
 }
 
 private struct AppConfigurationPayload: Codable {

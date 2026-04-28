@@ -11,6 +11,9 @@ struct ContentView: View {
     @ObservedObject var viewModel: AppViewModel
     @State private var selectedSidebarItem: SidebarItem?
     @State private var showingSettings = false
+#if os(macOS)
+    @State private var showingConfigurationTransfer = false
+#endif
     @State private var showingNewGridSheet = false
     @State private var editingGrid: GridLayout?
     @State private var settingsInitialCameraID: CameraConfig.ID?
@@ -77,6 +80,14 @@ struct ContentView: View {
         .sheet(isPresented: $showingNewGridSheet) {
             newGridSheet
         }
+#if os(macOS)
+        .sheet(isPresented: $showingConfigurationTransfer) {
+            ConfigurationTransferView(viewModel: viewModel)
+        }
+        .focusedValue(\.showConfigurationTransferAction) {
+            showingConfigurationTransfer = true
+        }
+#endif
         .onChange(of: showingSettings) { _, isPresented in
             if !isPresented {
                 settingsInitialCameraID = nil
