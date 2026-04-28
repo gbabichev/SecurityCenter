@@ -62,6 +62,9 @@ struct AboutView: View {
     private let vlcKitSPMURL = URL(string: "https://github.com/tylerjonesio/vlckit-spm")
     private let vlcKitURL = URL(string: "https://github.com/videolan/vlckit")
     private let lgplURL = URL(string: "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html")
+#if os(macOS)
+    @ObservedObject private var updateCenter = AppUpdateCenter.shared
+#endif
 
     var body: some View {
         VStack(spacing: 18) {
@@ -84,6 +87,10 @@ struct AboutView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             developerCard
+
+#if os(macOS)
+            updateCheckSection
+#endif
 
             Divider()
 
@@ -121,6 +128,33 @@ struct AboutView: View {
         .frame(maxWidth: .infinity)
 #endif
     }
+
+#if os(macOS)
+    private var updateCheckSection: some View {
+        VStack(spacing: 8) {
+            Button {
+                updateCenter.checkForUpdates(trigger: .manual)
+            } label: {
+                Label("Check for Updates…", systemImage: "arrow.triangle.2.circlepath.circle")
+            }
+            .disabled(updateCenter.isChecking)
+            .frame(maxWidth: .infinity)
+
+            if updateCenter.isChecking {
+                ProgressView()
+                    .controlSize(.small)
+            }
+
+            if let lastStatusMessage = updateCenter.lastStatusMessage {
+                Text(lastStatusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+#endif
 
     @ViewBuilder
     private var developerCard: some View {

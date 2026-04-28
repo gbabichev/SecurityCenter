@@ -14,6 +14,7 @@ import UniformTypeIdentifiers
 struct SecurityCenterApp: App {
     @StateObject private var viewModel = AppViewModel()
 #if os(macOS)
+    @NSApplicationDelegateAdaptor(SecurityCenterAppDelegate.self) private var appDelegate
     @State private var showingAbout = false
     @State private var showingImportPicker = false
     @State private var showingExportPicker = false
@@ -25,6 +26,7 @@ struct SecurityCenterApp: App {
         WindowGroup {
             ContentView(viewModel: viewModel)
 #if os(macOS)
+                .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
                 .overlay {
                     if showingAbout {
                         AboutOverlayView(isPresented: $showingAbout)
@@ -60,10 +62,16 @@ struct SecurityCenterApp: App {
         //.windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .appInfo) {
-                Button("About Security Center") {
+                Button("About Security Center", systemImage: "info.circle") {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         showingAbout = true
                     }
+                }
+
+                Button {
+                    AppUpdateCenter.shared.checkForUpdates(trigger: .manual)
+                } label: {
+                    Label("Check for Updates…", systemImage: "arrow.triangle.2.circlepath.circle")
                 }
             }
 
