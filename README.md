@@ -1,9 +1,9 @@
 <div align="center">
 
 <picture>
-  <source srcset="docs/icon-dark.svg" media="(prefers-color-scheme: dark)">
-  <source srcset="docs/icon-light.svg" media="(prefers-color-scheme: light)">
-  <img src="docs/icon-light.svg" alt="Security Center icon" width="100">
+  <source srcset="docs/icon-dark.png" media="(prefers-color-scheme: dark)">
+  <source srcset="docs/icon-light.png" media="(prefers-color-scheme: light)">
+  <img src="docs/icon-light.png" alt="Security Center icon" width="108">
 </picture>
 
 ## Security Center
@@ -17,24 +17,26 @@ Native camera monitoring for macOS and iOS.
 </div>
 
 <p align="center">
-  <a href="docs/preview-grid.svg"><img src="docs/preview-grid.svg" width="32%" alt="Security Center saved grid preview"></a>
-  <a href="docs/preview-camera.svg"><img src="docs/preview-camera.svg" width="32%" alt="Security Center single camera preview"></a>
-  <a href="docs/preview-settings.svg"><img src="docs/preview-settings.svg" width="32%" alt="Security Center settings preview"></a>
+  <a href="docs/mac1.jpg"><img src="docs/mac1.jpg" height="260" alt="Security Center saved grid on macOS"></a>
+  <a href="docs/iPad1.jpg"><img src="docs/iPad1.jpg" height="260" alt="Security Center running on iPad"></a>
 </p>
 
-Security Center is a SwiftUI app for monitoring Reolink cameras and generic RTSP streams from one place. It supports single-camera viewing, saved grids, per-camera settings, sidebar availability, JSON import and export, and quiet hours that black out the screen and pause camera traffic.
+Security Center brings Reolink snapshot feeds and RTSP streams into one native app, with saved grids, quiet hours, local import and export, and settings that stay understandable.
+
+Built for people who want a direct, local way to monitor cameras without turning setup and day-to-day use into a maintenance project.
 
 ## Features
 
-- Reolink Camera and Generic RTSP Stream support
-- Reolink JPG polling and RTSP live video modes
-- Saved custom grids with camera assignment
+- Reolink JPG and RTSP in one app, plus generic RTSP support
+- Saved grids with camera assignment and sidebar switching
 - Sidebar availability checks for enabled cameras
 - Quiet hours that black out the screen and pause polling, streaming, and probing
-- RTSP mute control
-- Per-camera display name overlays and positioning
-- JSON import and export using the app's persisted model
+- Per-camera editing for names, source settings, stream selection, mute, copy, disable, and validation
+- Local JSON import and export for moving configuration between installs
+- Theme and view background settings
 - Shared SwiftUI app for macOS and iOS with platform-specific settings flows
+- Local-first setup: camera traffic goes directly to the endpoints you configure
+
 
 ## Camera Modes
 
@@ -45,8 +47,8 @@ Security Center is a SwiftUI app for monitoring Reolink cameras and generic RTSP
 
 ## Platforms
 
-- macOS 26.2 or later
-- iOS 26.2 or later
+- macOS 15.0 or later
+- iOS 18.0 or later
 - Built with SwiftUI and `VLCKitSPM`
 
 ## What It Stores
@@ -57,55 +59,19 @@ Security Center stores its app state locally in `UserDefaults`, including:
 - Saved grids
 - Grid assignments
 - Grid picture style
+- Theme and view background
 - Selected sidebar item
 - Quiet hours
-
-Import and export use the same JSON payload shape as the app's stored model.
-
-## Build From Source
-
-Open the project in Xcode:
-
-```bash
-open "Security Center.xcodeproj"
-```
-
-Unsigned command-line builds:
-
-```bash
-env HOME=$PWD/.home \
-CLANG_MODULE_CACHE_PATH=$PWD/.cache/clang/ModuleCache \
-SWIFTPM_MODULECACHE_OVERRIDE=$PWD/.cache/org.swift.swiftpm \
-CFFIXED_USER_HOME=$PWD/.home \
-xcodebuild -project "Security Center.xcodeproj" \
-  -scheme "Security Center" \
-  -destination "generic/platform=macOS" \
-  -clonedSourcePackagesDirPath ".sourcepackages" \
-  -derivedDataPath ".derivedData" \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGNING_REQUIRED=NO \
-  build
-```
-
-```bash
-env HOME=$PWD/.home \
-CLANG_MODULE_CACHE_PATH=$PWD/.cache/clang/ModuleCache \
-SWIFTPM_MODULECACHE_OVERRIDE=$PWD/.cache/org.swift.swiftpm \
-CFFIXED_USER_HOME=$PWD/.home \
-xcodebuild -project "Security Center.xcodeproj" \
-  -scheme "Security Center" \
-  -destination "generic/platform=iOS" \
-  -clonedSourcePackagesDirPath ".sourcepackages" \
-  -derivedDataPath ".derivedData-ios" \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGNING_REQUIRED=NO \
-  build
-```
-
-## Support
-
-Support details live in [docs/Support.html](docs/Support.html).
 
 ## Privacy
 
 Privacy details live in [docs/PrivacyPolicy.html](docs/PrivacyPolicy.html).
+
+## Work In Progress
+
+I am continuing to work on improving performance of the iOS branch. Once I am happy with the results, it will be submitted to the App Store for release. 
+
+## Changelog
+
+### 1.0.0
+- Initial macOS release. iOS works, but you have to compile yourself. 

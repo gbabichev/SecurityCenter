@@ -297,7 +297,10 @@ a {
 }
 
 .screen-main {
-  inset: 18px 76px 28px 0;
+  top: 36px;
+  left: 0;
+  width: 82%;
+  aspect-ratio: 16 / 10;
   z-index: 1;
 }
 
@@ -553,7 +556,8 @@ a {
   }
 
   .screen-main {
-    inset: 42px 82px 34px 0;
+    top: 34px;
+    width: 82%;
   }
 
   .screen-side {
@@ -598,7 +602,8 @@ a {
   }
 
   .screen-main {
-    inset: 34px 50px 18px 0;
+    top: 34px;
+    width: 82%;
   }
 
   .screen-side {
