@@ -14,9 +14,22 @@
 		5E6F6CB12F11C26E0089C377 /* Security Center.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Security Center.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		FF6BFDAE2FF438A30062AEA0 /* Exceptions for "Security Center" folder in "Security Center" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Security-Center-Info.plist",
+			);
+			target = 5E6F6CB02F11C26E0089C377 /* Security Center */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		5E6F6CB32F11C26E0089C377 /* Security Center */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				FF6BFDAE2FF438A30062AEA0 /* Exceptions for "Security Center" folder in "Security Center" target */,
+			);
 			path = "Security Center";
 			sourceTree = "<group>";
 		};
@@ -267,6 +280,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Security-Center-Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Security Center connects directly to the cameras and RTSP streams you configure.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -314,6 +328,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Security-Center-Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Security Center connects directly to the cameras and RTSP streams you configure.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
