@@ -35,6 +35,7 @@ struct CameraSettingsView: View {
     @State private var didCopySourceURL = false
     @State private var appThemeDraft: AppTheme = .system
     @State private var viewBackgroundStyleDraft: ViewBackgroundStyle = .systemDefault
+    @State private var keepsScreenAwakeDraft = false
     @State private var gridPictureStyleDraft: GridPictureStyle = .fillEachBox
     @State private var quietHoursDraft = QuietHoursSchedule()
     @State private var showQuietHoursInToolbarDraft = false
@@ -243,6 +244,18 @@ struct CameraSettingsView: View {
                 Divider()
 
                 SettingsRow(
+                    "Keep Screen Awake",
+                    systemImage: "display",
+                    subtitle: "Prevent the screen from sleeping, including during quiet hours."
+                ) {
+                    Toggle(isOn: $keepsScreenAwakeDraft) {
+                    }
+                    .toggleStyle(.switch)
+                }
+
+                Divider()
+
+                SettingsRow(
                     "Camera Grid",
                     systemImage: "square.grid.2x2",
                     subtitle: gridPictureStyleDraft.description
@@ -277,6 +290,21 @@ struct CameraSettingsView: View {
                         options: ViewBackgroundStyle.allCases,
                         columns: 3
                     ) { $0.title }
+                }
+
+                fieldBlock(title: "Keep Screen Awake", caption: "Prevent the screen from sleeping, including during quiet hours.") {
+                    HStack {
+                        Text(keepsScreenAwakeDraft ? "On" : "Off")
+                            .foregroundStyle(.secondary)
+
+                        Spacer(minLength: 0)
+
+                        Toggle("Keep Screen Awake", isOn: $keepsScreenAwakeDraft)
+                            .labelsHidden()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
 
                 fieldBlock(title: "Camera Grid", caption: "Choose how pictures should look in the grid view.") {
@@ -1153,6 +1181,7 @@ struct CameraSettingsView: View {
     private var hasUnsavedAppSettingsChanges: Bool {
         appThemeDraft != viewModel.appTheme
             || viewBackgroundStyleDraft != viewModel.viewBackgroundStyle
+            || keepsScreenAwakeDraft != viewModel.keepsScreenAwake
             || gridPictureStyleDraft != viewModel.gridPictureStyle
             || quietHoursDraft != viewModel.quietHours
             || showQuietHoursInToolbarDraft != viewModel.showQuietHoursInToolbar
@@ -1519,6 +1548,7 @@ struct CameraSettingsView: View {
     private func saveAppSettings() {
         viewModel.appTheme = appThemeDraft
         viewModel.viewBackgroundStyle = viewBackgroundStyleDraft
+        viewModel.keepsScreenAwake = keepsScreenAwakeDraft
         viewModel.gridPictureStyle = gridPictureStyleDraft
         viewModel.quietHours = quietHoursDraft
         viewModel.showQuietHoursInToolbar = showQuietHoursInToolbarDraft
@@ -1528,6 +1558,7 @@ struct CameraSettingsView: View {
     private func syncAppSettingsDraft() {
         appThemeDraft = viewModel.appTheme
         viewBackgroundStyleDraft = viewModel.viewBackgroundStyle
+        keepsScreenAwakeDraft = viewModel.keepsScreenAwake
         gridPictureStyleDraft = viewModel.gridPictureStyle
         quietHoursDraft = viewModel.quietHours
         showQuietHoursInToolbarDraft = viewModel.showQuietHoursInToolbar

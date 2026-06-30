@@ -69,9 +69,12 @@ Privacy details live in [docs/PrivacyPolicy.html](docs/PrivacyPolicy.html).
 
 ## Work In Progress
 
-I am continuing to work on improving performance of the iOS branch. Once I am happy with the results, it will be submitted to the App Store for release. 
+I am continuing to work on improving performance of the iOS branch. Once I am happy with the results, it will be submitted to the App Store for release.
 
 ## Changelog
 
+### 1.0.1
+- Added "Keep Screen Awake" setting. Screen is kept awake by default when streaming, but would go to sleep during Quiet Hours. This setting prevents that.
+
 ### 1.0.0
-- Initial macOS release. iOS works, but you have to compile yourself. 
+- Initial macOS release. iOS works, but you have to compile yourself.

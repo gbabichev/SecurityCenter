@@ -23,6 +23,7 @@ final class AppViewModel: ObservableObject {
         static let quietHoursJSON = "quietHoursJSON"
         static let appTheme = "appTheme"
         static let viewBackgroundStyle = "viewBackgroundStyle"
+        static let keepsScreenAwake = "keepsScreenAwake"
         static let showQuietHoursInToolbar = "showQuietHoursInToolbar"
         static let quietHoursScheduleOverridesManual = "quietHoursScheduleOverridesManual"
     }
@@ -61,6 +62,12 @@ final class AppViewModel: ObservableObject {
     @Published var viewBackgroundStyle: ViewBackgroundStyle = .systemDefault {
         didSet {
             defaults.set(viewBackgroundStyle.rawValue, forKey: StorageKey.viewBackgroundStyle)
+        }
+    }
+    @Published var keepsScreenAwake = false {
+        didSet {
+            defaults.set(keepsScreenAwake, forKey: StorageKey.keepsScreenAwake)
+            ScreenAwakeController.shared.setEnabled(keepsScreenAwake)
         }
     }
     @Published var quietHours = QuietHoursSchedule() {
@@ -106,6 +113,8 @@ final class AppViewModel: ObservableObject {
         viewBackgroundStyle = ViewBackgroundStyle(
             rawValue: defaults.string(forKey: StorageKey.viewBackgroundStyle) ?? ViewBackgroundStyle.systemDefault.rawValue
         ) ?? .systemDefault
+        keepsScreenAwake = defaults.bool(forKey: StorageKey.keepsScreenAwake)
+        ScreenAwakeController.shared.setEnabled(keepsScreenAwake)
         gridPictureStyle = GridPictureStyle(
             rawValue: defaults.string(forKey: StorageKey.gridPictureStyle) ?? GridPictureStyle.fillEachBox.rawValue
         ) ?? .fillEachBox
@@ -223,6 +232,7 @@ final class AppViewModel: ObservableObject {
             gridPictureStyle: gridPictureStyle,
             appTheme: appTheme,
             viewBackgroundStyle: viewBackgroundStyle,
+            keepsScreenAwake: keepsScreenAwake,
             showQuietHoursInToolbar: showQuietHoursInToolbar,
             quietHoursScheduleOverridesManual: quietHoursScheduleOverridesManual,
             quietHours: quietHours
@@ -320,6 +330,7 @@ final class AppViewModel: ObservableObject {
             gridPictureStyle = payload.gridPictureStyle
             appTheme = payload.appTheme ?? .system
             viewBackgroundStyle = payload.viewBackgroundStyle ?? .systemDefault
+            keepsScreenAwake = payload.keepsScreenAwake ?? false
         }
 
         if options.importsQuietHours {
@@ -788,6 +799,7 @@ private struct AppConfigurationPayload: Codable {
     let gridPictureStyle: GridPictureStyle
     let appTheme: AppTheme?
     let viewBackgroundStyle: ViewBackgroundStyle?
+    let keepsScreenAwake: Bool?
     let showQuietHoursInToolbar: Bool?
     let quietHoursScheduleOverridesManual: Bool?
     let quietHours: QuietHoursSchedule?
