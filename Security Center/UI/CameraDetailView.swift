@@ -35,7 +35,6 @@ struct CameraDetailView: View {
 
                     streamStatusOverlay
                 }
-                .padding(viewModel.isQuietHoursActive ? 0 : 16)
                 .frame(
                     width: proxy.size.width,
                     height: proxy.size.height,
