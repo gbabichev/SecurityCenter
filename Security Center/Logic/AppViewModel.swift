@@ -164,6 +164,10 @@ final class AppViewModel: ObservableObject {
         cameras.removeAll { $0.id == camera.id }
     }
 
+    func deleteAllCameras() {
+        cameras.removeAll()
+    }
+
     func addGrid(name: String = "", columns: Int, rows: Int) -> GridLayout {
         let grid = GridLayout(name: name, columns: columns, rows: rows)
         grids.append(grid)
@@ -192,6 +196,11 @@ final class AppViewModel: ObservableObject {
     func deleteGrid(_ grid: GridLayout) {
         guard grids.count > 1 else { return }
         grids.removeAll { $0.id == grid.id }
+    }
+
+    func resetGrids() {
+        grids = [.defaultGrid]
+        gridAssignments = [GridLayout.defaultGridID: Array(repeating: nil, count: GridLayout.defaultGrid.maxItems)]
     }
 
     func duplicateCamera(_ camera: CameraConfig) -> CameraConfig {

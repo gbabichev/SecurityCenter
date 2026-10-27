@@ -14,7 +14,8 @@ struct SecurityCenterApp: App {
 #if os(macOS)
     @NSApplicationDelegateAdaptor(SecurityCenterAppDelegate.self) private var appDelegate
     @Environment(\.openWindow) private var openWindow
-    @FocusedValue(\.configurationTransferPresentation) private var configurationTransferPresentation
+    @Environment(\.openSettings) private var openSettings
+    @State private var settingsNavigation = MacSettingsNavigation()
     @State private var showingAbout = false
 #endif
 
@@ -22,6 +23,7 @@ struct SecurityCenterApp: App {
         WindowGroup(id: mainWindowID) {
             ContentView(viewModel: viewModel)
 #if os(macOS)
+                .environment(settingsNavigation)
                 .frame(minWidth: 400, minHeight: 500)
                 .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
                 .overlay {
@@ -57,14 +59,22 @@ struct SecurityCenterApp: App {
 
             CommandGroup(after: .newItem) {
                 Button {
-                    configurationTransferPresentation?.wrappedValue = true
+                    settingsNavigation.selection = .configuration
+                    openSettings()
                 } label: {
                     Label("Configuration…", systemImage: "arrow.up.arrow.down")
                 }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
-                .disabled(configurationTransferPresentation == nil)
             }
         }
+
+#endif
+#if os(macOS)
+        Settings {
+            MacSettingsView(viewModel: viewModel)
+                .environment(settingsNavigation)
+        }
+        .windowResizability(.contentSize)
 #endif
     }
 }

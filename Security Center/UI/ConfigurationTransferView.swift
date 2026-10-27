@@ -9,23 +9,13 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-private struct ConfigurationTransferPresentationKey: FocusedValueKey {
-    typealias Value = Binding<Bool>
-}
-
-extension FocusedValues {
-    var configurationTransferPresentation: Binding<Bool>? {
-        get { self[ConfigurationTransferPresentationKey.self] }
-        set { self[ConfigurationTransferPresentationKey.self] = newValue }
-    }
-}
-
 struct ConfigurationTransferView: View {
     @ObservedObject var viewModel: AppViewModel
-    @Environment(\.dismiss) private var dismiss
 
     @State private var showingImporter = false
     @State private var showingExporter = false
+    @State private var showingRemoveAllCamerasConfirmation = false
+    @State private var showingResetGridsConfirmation = false
     @State private var exportDocument = ConfigurationJSONDocument(data: Data())
     @State private var importData: Data?
     @State private var importFileName: String?
@@ -36,27 +26,62 @@ struct ConfigurationTransferView: View {
     @State private var alert: ConfigurationTransferAlert?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            header
-
-            Divider()
-
-            importSection
-
-            Divider()
-
-            exportSection
-
-            HStack {
-                Spacer()
-                Button("Done") {
-                    dismiss()
+        Form {
+            Section {
+                importSection
+            } header: {
+                Text("Import Configuration")
+            } footer: {
+                Text("Choose what to import. Existing cameras and grids are kept; selected preferences are updated.")
+            }
+            Section("Export Configuration") {
+                exportSection
+            }
+            Section {
+                HStack {
+                    Text("Remove every camera from this app.")
+                    Spacer()
+                    Button("Remove All Cameras…", role: .destructive) {
+                        showingRemoveAllCamerasConfirmation = true
+                    }
+                    .disabled(viewModel.cameras.isEmpty)
                 }
-                .keyboardShortcut(.defaultAction)
+            } header: {
+                Text("Reset Cameras")
+            } footer: {
+                Text("Saved grids and preferences are kept. Export your configuration first if you want a backup.")
+            }
+            Section {
+                HStack {
+                    Text("Restore a single empty 2×2 grid.")
+                    Spacer()
+                    Button("Reset Grids…", role: .destructive) {
+                        showingResetGridsConfirmation = true
+                    }
+                }
+            } header: {
+                Text("Reset Grids")
+            } footer: {
+                Text("Removes saved grids and their camera assignments. Cameras and preferences are kept.")
             }
         }
-        .padding(22)
-        .frame(width: 520)
+        .formStyle(.grouped)
+        .alert("Remove All Cameras?", isPresented: $showingRemoveAllCamerasConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Remove All Cameras", role: .destructive) {
+                viewModel.deleteAllCameras()
+            }
+        } message: {
+            Text("This permanently removes all cameras and clears their grid assignments. This cannot be undone.")
+        }
+        .alert("Reset All Grids?", isPresented: $showingResetGridsConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Reset Grids", role: .destructive) {
+                viewModel.resetGrids()
+            }
+        } message: {
+            Text("This removes every saved grid and its camera assignments, then creates an empty 2×2 grid. Your cameras are kept. This cannot be undone.")
+        }
         .fileImporter(
             isPresented: $showingImporter,
             allowedContentTypes: [.json],
@@ -83,37 +108,20 @@ struct ConfigurationTransferView: View {
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "arrow.up.arrow.down")
-                .font(.title2)
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.secondary)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Configuration")
-                    .font(.title3.weight(.semibold))
-                Text("Import selected parts of a JSON file or export the current setup.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
     private var importSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                sectionTitle("Import")
+                Text("Add from a file")
                 Spacer()
                 Button {
                     showingImporter = true
                 } label: {
-                    Label("Choose JSON…", systemImage: "doc.badge.plus")
+                    Label("Choose File…", systemImage: "doc.badge.plus")
                 }
             }
 
             if let importFileName, let importPreview {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 16) {
                     HStack {
                         Image(systemName: "doc.text")
                             .foregroundStyle(.secondary)
@@ -123,7 +131,7 @@ struct ConfigurationTransferView: View {
                         Spacer()
                     }
 
-                    importItemGroup(
+                    ConfigurationImportItemGroup(
                         title: "Cameras",
                         systemImage: "video",
                         items: importPreview.cameras,
@@ -131,7 +139,9 @@ struct ConfigurationTransferView: View {
                         isExpanded: $camerasExpanded
                     )
 
-                    importItemGroup(
+                    Divider()
+
+                    ConfigurationImportItemGroup(
                         title: "Grids",
                         systemImage: "square.grid.2x2",
                         items: importPreview.grids,
@@ -139,10 +149,16 @@ struct ConfigurationTransferView: View {
                         isExpanded: $gridsExpanded
                     )
 
-                    Toggle("App display settings", isOn: $importOptions.importsAppSettings)
-                        .disabled(!importPreview.includesAppSettings)
-                    Toggle("Quiet hours", isOn: $importOptions.importsQuietHours)
-                        .disabled(!importPreview.includesQuietHours)
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("App display settings", isOn: $importOptions.importsAppSettings)
+                            .disabled(!importPreview.includesAppSettings)
+                        Toggle("Quiet hours", isOn: $importOptions.importsQuietHours)
+                            .disabled(!importPreview.includesQuietHours)
+                    }
+                    .toggleStyle(.checkbox)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                     if !previewSummary(importPreview).isEmpty {
                         Text(previewSummary(importPreview))
@@ -162,10 +178,9 @@ struct ConfigurationTransferView: View {
                         .disabled(!canImport)
                     }
                 }
-                .padding(14)
-                .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.top, 4)
             } else {
-                Text("Choose a Security Center JSON export, then select what to add to this setup.")
+                Text("Open a Security Center configuration file to select what to import.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -177,25 +192,18 @@ struct ConfigurationTransferView: View {
 
     private var exportSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("Export")
-
             HStack {
-                Text("Save the current cameras, grids, assignments, and app settings as JSON.")
+                Text("Save all cameras, grids, and preferences to a file.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button {
                     exportConfiguration()
                 } label: {
-                    Label("Export JSON…", systemImage: "square.and.arrow.up")
+                    Label("Export…", systemImage: "square.and.arrow.up")
                 }
             }
         }
-    }
-
-    private func sectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(.headline.weight(.semibold))
     }
 
     private var canImport: Bool {
@@ -204,66 +212,6 @@ struct ConfigurationTransferView: View {
              !importOptions.selectedGridIDs.isEmpty ||
              importOptions.importsAppSettings ||
              importOptions.importsQuietHours)
-    }
-
-    private func importItemGroup(
-        title: String,
-        systemImage: String,
-        items: [ConfigurationImportItem],
-        selection: Binding<Set<UUID>>,
-        isExpanded: Binding<Bool>
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Button {
-                isExpanded.wrappedValue.toggle()
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: isExpanded.wrappedValue ? "chevron.down" : "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .frame(width: 12)
-                    Image(systemName: systemImage)
-                        .foregroundStyle(.secondary)
-                    Text("\(title) (\(items.count))")
-                    Spacer()
-                    Button(selection.wrappedValue.count == items.count ? "None" : "All") {
-                        if selection.wrappedValue.count == items.count {
-                            selection.wrappedValue = []
-                        } else {
-                            selection.wrappedValue = Set(items.map(\.id))
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(items.isEmpty)
-                }
-            }
-            .buttonStyle(.plain)
-            .disabled(items.isEmpty)
-
-            if isExpanded.wrappedValue && !items.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(items) { item in
-                        Toggle(isOn: itemSelectionBinding(item.id, selection: selection)) {
-                            Text(item.name)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-                    }
-                }
-                .padding(.leading, 22)
-            }
-        }
-    }
-
-    private func itemSelectionBinding(_ id: UUID, selection: Binding<Set<UUID>>) -> Binding<Bool> {
-        Binding {
-            selection.wrappedValue.contains(id)
-        } set: { isSelected in
-            if isSelected {
-                selection.wrappedValue.insert(id)
-            } else {
-                selection.wrappedValue.remove(id)
-            }
-        }
     }
 
     private func handleImportSelection(result: Result<[URL], Error>) {
@@ -324,6 +272,52 @@ struct ConfigurationTransferView: View {
             return "Includes grids \(gridNames)."
         case (true, true):
             return ""
+        }
+    }
+}
+
+private struct ConfigurationImportItemGroup: View {
+    let title: String
+    let systemImage: String
+    let items: [ConfigurationImportItem]
+    @Binding var selection: Set<UUID>
+    @Binding var isExpanded: Bool
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Button("Select All") { selection = Set(items.map(\.id)) }
+                    Button("Deselect All") { selection = [] }
+                }
+                .controlSize(.small)
+                .padding(.bottom, 2)
+
+                ForEach(items) { item in
+                    Toggle(isOn: itemSelection(item.id)) {
+                        Text(item.name).lineLimit(1).truncationMode(.tail)
+                    }
+                    .toggleStyle(.checkbox)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 6)
+        } label: {
+            Label("\(title) (\(items.count))", systemImage: systemImage)
+        }
+        .disabled(items.isEmpty)
+    }
+
+    private func itemSelection(_ id: UUID) -> Binding<Bool> {
+        Binding {
+            selection.contains(id)
+        } set: { isSelected in
+            if isSelected {
+                selection.insert(id)
+            } else {
+                selection.remove(id)
+            }
         }
     }
 }

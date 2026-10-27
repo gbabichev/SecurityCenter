@@ -12,7 +12,8 @@ struct ContentView: View {
     @State private var selectedSidebarItem: SidebarItem?
     @State private var showingSettings = false
 #if os(macOS)
-    @State private var showingConfigurationTransfer = false
+    @Environment(\.openSettings) private var openSettings
+    @Environment(MacSettingsNavigation.self) private var settingsNavigation
 #endif
     @State private var showingNewGridSheet = false
     @State private var editingGrid: GridLayout?
@@ -70,6 +71,7 @@ struct ContentView: View {
                 }
             }
         }
+#if os(iOS)
         .sheet(isPresented: $showingSettings) {
             CameraSettingsView(
                 viewModel: viewModel,
@@ -77,15 +79,10 @@ struct ContentView: View {
                 startsAddingCamera: settingsStartsAddingCamera
             )
         }
+#endif
         .sheet(isPresented: $showingNewGridSheet) {
             newGridSheet
         }
-#if os(macOS)
-        .sheet(isPresented: $showingConfigurationTransfer) {
-            ConfigurationTransferView(viewModel: viewModel)
-        }
-        .focusedSceneValue(\.configurationTransferPresentation, $showingConfigurationTransfer)
-#endif
         .onChange(of: showingSettings) { _, isPresented in
             if !isPresented {
                 settingsInitialCameraID = nil
@@ -108,9 +105,14 @@ struct ContentView: View {
             Text("Add a camera to start building your security view.")
         } actions: {
             Button {
+#if os(macOS)
+                settingsNavigation.editCamera()
+                openSettings()
+#else
                 settingsInitialCameraID = nil
                 settingsStartsAddingCamera = true
                 showingSettings = true
+#endif
             } label: {
                 Label("Add Camera", systemImage: "plus.circle.fill")
             }
@@ -147,9 +149,14 @@ struct ContentView: View {
                         .tag(SidebarItem.camera(camera.id))
                         .contextMenu {
                             Button("Edit") {
+#if os(macOS)
+                                settingsNavigation.editCamera(camera.id)
+                                openSettings()
+#else
                                 settingsInitialCameraID = camera.id
                                 settingsStartsAddingCamera = false
                                 showingSettings = true
+#endif
                             }
 
                             Button("Delete", role: .destructive) {
@@ -201,7 +208,11 @@ struct ContentView: View {
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button {
+#if os(macOS)
+                    openSettings()
+#else
                     showingSettings = true
+#endif
                 } label: {
                     Label("Settings", systemImage: "gearshape")
                 }

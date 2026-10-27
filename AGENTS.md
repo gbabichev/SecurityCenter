@@ -64,12 +64,14 @@
 ## Current UX Rules
 - Avoid technical wording in user-facing copy where possible.
 - macOS settings and iOS settings intentionally diverge:
-  - macOS uses `SettingsSection` / `SettingsRow`
+  - macOS uses a native `Settings` scene with General, Quiet Hours, Cameras, Grids, and Configuration tabs
   - iOS uses larger touch-friendly controls and separate editor sheets
-- Main settings and camera editor both use top-right `Done`.
-- App settings stay local until `Done`.
+- macOS preferences save immediately; close the native Settings window when finished.
+- iOS app settings stay local until the top-right `Done`.
+- Camera editors use top-right `Done` to close and `Save` to commit.
 - Camera edits stay local until `Save`.
-- On iOS and macOS, camera editing happens in a separate overlay sheet.
+- On iOS and macOS, camera editing happens in a separate sheet; on macOS it belongs to the Settings window.
+- On macOS, the gear button and app menu open the same Settings window; File > Configuration selects its Configuration tab.
 - Sidebar context menus are part of the main workflow now:
   - cameras: `Edit`, `Delete`
   - grids: `Edit Grid`, `Delete`
@@ -82,7 +84,13 @@
 - `Security Center/UI/ContentView.swift`
   - split view, sidebar, settings presentation, new grid flow
 - `Security Center/UI/CameraSettingsView.swift`
-  - app settings UI + camera editor UI
+  - iOS app settings UI + shared camera editor + macOS camera pane
+- `Security Center/UI/MacSettingsView.swift`
+  - native macOS Settings tabs, immediate preferences, and camera editor routing
+- `Security Center/UI/GridSettingsPane.swift`
+  - macOS grid management and draft-based grid editor
+- `Security Center/UI/ConfigurationTransferView.swift`
+  - Configuration tab with selective import and full export
 - `Security Center/UI/CameraDetailView.swift`
   - single-camera detail
 - `Security Center/UI/GridDetailView.swift`
@@ -108,6 +116,9 @@
 ## Grid Notes
 - Hardcoded grid presets were removed.
 - Default grid is `2x2`.
+- macOS Settings includes a Grids tab for creation, editing, camera assignments, and deletion. Changes apply on Create/Save.
+- Configuration > Reset Grids requires confirmation, restores one empty default `2x2` grid, and keeps cameras/preferences.
+- Grid deletion keeps at least one grid; use Reset Grids to clear the final layout.
 - Users create saved grids from the sidebar `+`.
 - Editing a grid reuses the same sheet as new-grid creation, but pre-populates the existing name/rows/columns.
 - Resizing an existing grid preserves assignments where possible, truncates overflow when shrinking, and pads with empty slots when growing.

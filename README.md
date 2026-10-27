@@ -34,6 +34,7 @@ Built for people who want a direct, local way to monitor cameras without turning
 - Per-camera editing for names, source settings, stream selection, mute, copy, disable, and validation
 - Local JSON import and export for moving configuration between installs
 - Theme and view background settings
+- Native macOS Settings window with General, Quiet Hours, Cameras, Grids, and Configuration tabs (⌘,); preferences save immediately
 - Shared SwiftUI app for macOS and iOS with platform-specific settings flows
 - Local-first setup: camera traffic goes directly to the endpoints you configure
 

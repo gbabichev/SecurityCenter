@@ -19,6 +19,7 @@ struct CameraSettingsView: View {
         case selectCamera(CameraConfig)
         case dismissSheet
         case dismissEditor
+        case addCamera
     }
 
     @ObservedObject var viewModel: AppViewModel
@@ -42,6 +43,9 @@ struct CameraSettingsView: View {
     @State private var quietHoursScheduleOverridesManualDraft = false
     @State private var showingCameraEditorSheet = false
     @State private var didHandleInitialPresentation = false
+#if os(macOS)
+    @Environment(MacSettingsNavigation.self) private var settingsNavigation
+#endif
 #if os(iOS)
     @State private var showingImportPicker = false
     @State private var showingExportPicker = false
@@ -60,22 +64,10 @@ struct CameraSettingsView: View {
 
     #if os(macOS)
     private var macBody: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            header
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    appSettingsSection
-
-                    cameraSettingsSection
-                }
-                .padding(.top, 4)
-            }
-        }
-        .padding(16)
-        .onAppear {
-            syncAppSettingsDraft()
-            handleInitialPresentationIfNeeded()
+        MacCameraSettingsList(viewModel: viewModel, onAdd: beginAddingCamera, onEdit: openEditor)
+        .onAppear { handleMacCameraRequest() }
+        .onChange(of: settingsNavigation.cameraRequest) { _, _ in
+            handleMacCameraRequest()
         }
         .onChange(of: draft) { _, _ in
             guard !editorState.isValidating else { return }
@@ -110,10 +102,6 @@ struct CameraSettingsView: View {
         } message: {
             Text("You have unsaved changes for this camera. Discard them and continue?")
         }
-        .interactiveDismissDisabled(hasUnsavedAppSettingsChanges)
-#if os(macOS)
-        .frame(minWidth: 850, minHeight: 620)
-#endif
     }
     #endif
 
@@ -1468,6 +1456,8 @@ struct CameraSettingsView: View {
         case .dismissEditor:
             showingCameraEditorSheet = false
             resetEditor()
+        case .addCamera:
+            beginAddingCamera()
         }
     }
 
@@ -1484,6 +1474,19 @@ struct CameraSettingsView: View {
         resetEditor()
         showingCameraEditorSheet = true
     }
+
+#if os(macOS)
+    private func handleMacCameraRequest() {
+        guard let request = settingsNavigation.cameraRequest else { return }
+        settingsNavigation.cameraRequest = nil
+        if let id = request.cameraID,
+           let camera = viewModel.cameras.first(where: { $0.id == id }) {
+            attemptToLeaveEditor(.selectCamera(camera))
+        } else if request.cameraID == nil {
+            attemptToLeaveEditor(.addCamera)
+        }
+    }
+#endif
 
     private func handleInitialPresentationIfNeeded() {
         guard !didHandleInitialPresentation else { return }
