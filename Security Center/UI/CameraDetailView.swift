@@ -40,6 +40,11 @@ struct CameraDetailView: View {
                     height: proxy.size.height,
                     alignment: .center
                 )
+                .overlay(alignment: camera.nameLocation.alignment) {
+                    if camera.showsNameInDisplay, camera.isEnabled, !viewModel.isQuietHoursActive {
+                        CameraNameBadge(name: camera.displayName)
+                    }
+                }
             }
         }
         .onChange(of: camera) { _, _ in backdropImage = nil }
@@ -177,4 +182,18 @@ struct CameraDetailView: View {
         }
     }
 
+}
+
+struct CameraNameBadge: View {
+    let name: String
+
+    var body: some View {
+        Text(name)
+            .font(.caption)
+            .foregroundStyle(.white)
+            .padding(6)
+            .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 6))
+            .padding(8)
+            .allowsHitTesting(false)
+    }
 }

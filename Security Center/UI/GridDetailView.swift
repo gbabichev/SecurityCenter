@@ -75,13 +75,7 @@ struct GridDetailView: View {
             }
 
             if let camera, camera.showsNameInDisplay {
-                Text(camera.displayName)
-                    .font(.caption)
-                    .foregroundStyle(.white)
-                    .padding(6)
-                    .background(.black.opacity(0.6))
-                    .cornerRadius(6)
-                    .padding(8)
+                CameraNameBadge(name: camera.displayName)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: camera.nameLocation.alignment)
             }
 

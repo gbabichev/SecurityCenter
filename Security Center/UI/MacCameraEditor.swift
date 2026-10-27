@@ -206,7 +206,7 @@ private struct CameraDisplayFields: View {
             } header: {
                 Text("Camera Label")
             } footer: {
-                Text("The camera name appears in the selected corner of its picture.")
+                Text("The camera name appears in the selected corner in single-camera and grid views.")
             }
         }
         .formStyle(.grouped)
