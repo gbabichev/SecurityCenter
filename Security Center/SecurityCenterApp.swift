@@ -14,7 +14,6 @@ struct SecurityCenterApp: App {
 #if os(macOS)
     @NSApplicationDelegateAdaptor(SecurityCenterAppDelegate.self) private var appDelegate
     @Environment(\.openWindow) private var openWindow
-    @Environment(\.openSettings) private var openSettings
     @State private var settingsNavigation = MacSettingsNavigation()
     @State private var showingAbout = false
 #endif
@@ -57,15 +56,6 @@ struct SecurityCenterApp: App {
                 .keyboardShortcut("n")
             }
 
-            CommandGroup(after: .newItem) {
-                Button {
-                    settingsNavigation.selection = .configuration
-                    openSettings()
-                } label: {
-                    Label("Configuration…", systemImage: "arrow.up.arrow.down")
-                }
-                .keyboardShortcut("i", modifiers: [.command, .shift])
-            }
         }
 
 #endif

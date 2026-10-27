@@ -74,7 +74,7 @@
 - iOS camera editors use top-right `Done` to close and `Save` to commit.
 - Camera edits stay local until `Save`.
 - On iOS and macOS, camera editing happens in a separate sheet; on macOS it belongs to the Settings window.
-- On macOS, the gear button and app menu open the same Settings window; File > Configuration selects its Configuration tab.
+- On macOS, the gear button and native app-menu Settings… (⌘,) open the same Settings window. There is no separate File > Configuration command.
 - Sidebar context menus are part of the main workflow now:
   - cameras: `Edit`, `Delete`
   - grids: `Edit Grid`, `Delete`
