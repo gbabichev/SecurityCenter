@@ -36,6 +36,7 @@ struct CameraSettingsView: View {
     @State private var showingDeleteCameraConfirmation = false
     @State private var didCopySourceURL = false
     @State private var appThemeDraft: AppTheme = .system
+    @State private var debugLoggingEnabledDraft = false
     @State private var blurredCameraBackgroundDraft = false
     @State private var viewBackgroundStyleDraft: ViewBackgroundStyle = .systemDefault
     @State private var keepsScreenAwakeDraft = false
@@ -314,6 +315,15 @@ struct CameraSettingsView: View {
                 }
 
                 quietHoursSettingsBlock
+
+                fieldBlock(title: "Diagnostics", caption: "Record streaming details to help investigate camera problems. Logging starts when you tap Done.") {
+                    Toggle("Enable Debug Logging", isOn: $debugLoggingEnabledDraft)
+                    ShareLink(item: StreamDebugLog.shared.fileURL) {
+                        Label("Share Debug Log", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(!FileManager.default.fileExists(atPath: StreamDebugLog.shared.fileURL.path))
+                    if let error = viewModel.debugLoggingError { Text(error).foregroundStyle(.red) }
+                }
 
                 fieldBlock(title: "Configuration", caption: "Import or export your app settings and cameras as JSON.") {
                     VStack(spacing: 10) {
@@ -1193,6 +1203,7 @@ struct CameraSettingsView: View {
 
     private var hasUnsavedAppSettingsChanges: Bool {
         appThemeDraft != viewModel.appTheme
+            || debugLoggingEnabledDraft != viewModel.debugLoggingEnabled
             || blurredCameraBackgroundDraft != viewModel.blurredCameraBackground
             || viewBackgroundStyleDraft != viewModel.viewBackgroundStyle
             || keepsScreenAwakeDraft != viewModel.keepsScreenAwake
@@ -1590,6 +1601,7 @@ struct CameraSettingsView: View {
     }
 
     private func saveAppSettings() {
+        viewModel.debugLoggingEnabled = debugLoggingEnabledDraft
         viewModel.appTheme = appThemeDraft
         viewModel.blurredCameraBackground = blurredCameraBackgroundDraft
         viewModel.viewBackgroundStyle = viewBackgroundStyleDraft
@@ -1601,6 +1613,7 @@ struct CameraSettingsView: View {
     }
 
     private func syncAppSettingsDraft() {
+        debugLoggingEnabledDraft = viewModel.debugLoggingEnabled
         appThemeDraft = viewModel.appTheme
         blurredCameraBackgroundDraft = viewModel.blurredCameraBackground
         viewBackgroundStyleDraft = viewModel.viewBackgroundStyle

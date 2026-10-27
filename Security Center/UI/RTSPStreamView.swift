@@ -48,13 +48,24 @@ enum RTSPPlaybackState: Equatable {
 }
 
 private enum RTSPVLCConfiguration {
-    static let sharedLibrary = VLCLibrary(options: [
-        "--no-snapshot-preview",
-        "--no-osd",
-        "--rtsp-tcp",
-        "--network-caching=1000",
-        "--live-caching=1000"
-    ])
+    private static let nativeLogger = VLCStreamLogger()
+    private static var loggingObserver: NSObjectProtocol?
+    static let sharedLibrary: VLCLibrary = {
+        let library = VLCLibrary(options: [
+            "--no-snapshot-preview",
+            "--no-osd",
+            "--rtsp-tcp",
+            "--network-caching=1000",
+            "--live-caching=1000"
+        ])
+        library.loggers = StreamDebugLog.shared.isEnabled ? [nativeLogger] : nil
+        loggingObserver = NotificationCenter.default.addObserver(forName: .streamDebugLoggingChanged, object: nil, queue: .main) { _ in
+            Task { @MainActor in
+                library.loggers = StreamDebugLog.shared.isEnabled ? [nativeLogger] : nil
+            }
+        }
+        return library
+    }()
 
     static let mediaOptions = [
         "rtsp-tcp",
@@ -66,6 +77,7 @@ private enum RTSPVLCConfiguration {
 struct RTSPStreamView: View {
     let url: URL?
     let isMuted: Bool
+    var diagnosticName = ""
     var scalingMode: RTSPScalingMode = .fit
     var backgroundColor: Color?
     var providesBackdrop = false
@@ -87,6 +99,7 @@ struct RTSPStreamView: View {
                 VLCPlayerContainer(
                     url: url,
                     isMuted: isMuted,
+                    diagnosticName: diagnosticName,
                     backgroundColor: backgroundColor,
                     providesBackdrop: providesBackdrop,
                     onBackdropImageChange: onBackdropImageChange,
@@ -151,6 +164,7 @@ private typealias VLCPlatformView = VLCVideoView
 private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
     let url: URL?
     let isMuted: Bool
+    let diagnosticName: String
     let backgroundColor: Color?
     let providesBackdrop: Bool
     let onBackdropImageChange: (PlatformImage?) -> Void
@@ -172,14 +186,14 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         let view = VLCPlatformView()
         view.backgroundColor = backgroundColor.map(UIColor.init) ?? .clear
         context.coordinator.attach(to: view)
-        context.coordinator.update(url: url, isMuted: isMuted, providesBackdrop: providesBackdrop)
+        context.coordinator.update(url: url, isMuted: isMuted, providesBackdrop: providesBackdrop, diagnosticName: diagnosticName)
         return view
     }
 
     func updateUIView(_ view: VLCPlatformView, context: Context) {
         view.backgroundColor = backgroundColor.map(UIColor.init) ?? .clear
         context.coordinator.attach(to: view)
-        context.coordinator.update(url: url, isMuted: isMuted, providesBackdrop: providesBackdrop)
+        context.coordinator.update(url: url, isMuted: isMuted, providesBackdrop: providesBackdrop, diagnosticName: diagnosticName)
     }
 
     static func dismantleUIView(_ view: VLCPlatformView, coordinator: Coordinator) {
@@ -190,14 +204,14 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         let view = VLCPlatformView()
         view.backColor = backgroundColor.map(NSColor.init) ?? .clear
         context.coordinator.attach(to: view)
-        context.coordinator.update(url: url, isMuted: isMuted, providesBackdrop: providesBackdrop)
+        context.coordinator.update(url: url, isMuted: isMuted, providesBackdrop: providesBackdrop, diagnosticName: diagnosticName)
         return view
     }
 
     func updateNSView(_ view: VLCPlatformView, context: Context) {
         view.backColor = backgroundColor.map(NSColor.init) ?? .clear
         context.coordinator.attach(to: view)
-        context.coordinator.update(url: url, isMuted: isMuted, providesBackdrop: providesBackdrop)
+        context.coordinator.update(url: url, isMuted: isMuted, providesBackdrop: providesBackdrop, diagnosticName: diagnosticName)
     }
 
     static func dismantleNSView(_ view: VLCPlatformView, coordinator: Coordinator) {
@@ -216,6 +230,13 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         private var backdropEnabled = false
         private var lastBackdropCaptureAt: Date?
         private static let backdropRefreshInterval: TimeInterval = 30 * 60
+        private let diagnosticID = String(UUID().uuidString.prefix(8))
+        private var diagnosticName = ""
+        private var diagnosticsTask: Task<Void, Never>?
+        private var diagnosticsObserver: NSObjectProtocol?
+        private var lastLoggedPlayerState: Int?
+        private var previousDisplayed: Int32?
+        private var attachmentCount = 0
         private var currentURL: URL?
         private var currentIsMuted = false
         private var reconnectTask: Task<Void, Never>?
@@ -236,9 +257,14 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             self.onBackdropImageChange = onBackdropImageChange
             super.init()
             player.delegate = self
+            diagnosticsObserver = NotificationCenter.default.addObserver(forName: .streamDebugLoggingChanged, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor [weak self] in self?.refreshDiagnosticSampling() }
+            }
         }
 
         deinit {
+            diagnosticsTask?.cancel()
+            if let diagnosticsObserver { NotificationCenter.default.removeObserver(diagnosticsObserver) }
             backdropTask?.cancel()
             if let backdropDirectory { try? FileManager.default.removeItem(at: backdropDirectory) }
             reconnectTask?.cancel()
@@ -246,6 +272,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         }
 
         func attach(to view: VLCPlatformView) {
+            attachmentCount += 1
 #if os(macOS)
             player.setVideoView(view)
 #else
@@ -255,7 +282,9 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             applyMute()
         }
 
-        func update(url: URL?, isMuted: Bool, providesBackdrop: Bool) {
+        func update(url: URL?, isMuted: Bool, providesBackdrop: Bool, diagnosticName: String) {
+            self.diagnosticName = diagnosticName
+            StreamDebugLog.shared.registerCredentials(in: url)
             let didURLChange = currentURL != url
             if didURLChange || backdropEnabled != providesBackdrop {
                 stopBackdropCapture()
@@ -271,6 +300,10 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             reconnectTask?.cancel()
             videoReadyTask?.cancel()
             currentURL = url
+            previousDisplayed = nil
+            lastLoggedPlayerState = nil
+            refreshDiagnosticSampling()
+            logDiagnostic("source changed; muted=\(isMuted) backdrop=\(providesBackdrop) caching=1000ms transport=tcp")
             hasShownVideo = false
             reconnectDelayNanoseconds = 2_000_000_000
 
@@ -290,6 +323,9 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         }
 
         func stop() {
+            logDiagnostic("stop requested")
+            diagnosticsTask?.cancel()
+            diagnosticsTask = nil
             stopBackdropCapture()
             isActive = false
             reconnectTask?.cancel()
@@ -330,6 +366,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
                 onBackdropImageChange(nil)
                 return 1_000_000_000
             }
+            logDiagnostic("background snapshot requested")
             player.saveVideoSnapshot(at: file.path, withWidth: 256, andHeight: 0)
             // Retry promptly until the first successful frame; then sleep until it is due.
             return 1_000_000_000
@@ -343,6 +380,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             guard isActive, backdropEnabled, let backdropDirectory else { return }
             let file = backdropDirectory.appendingPathComponent("frame.png")
             if let data = try? Data(contentsOf: file), let image = PlatformImage(data: data) {
+                logDiagnostic("background snapshot completed")
                 lastBackdropCaptureAt = Date()
                 onBackdropImageChange(image)
                 try? FileManager.default.removeItem(at: file)
@@ -359,6 +397,10 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         }
 
         func mediaPlayerStateChanged(_ notification: Notification) {
+            if lastLoggedPlayerState != player.state.rawValue {
+                lastLoggedPlayerState = player.state.rawValue
+                logDiagnostic("VLC state=\(player.state.rawValue) videoOut=\(player.hasVideoOut) shownVideo=\(hasShownVideo)")
+            }
             switch player.state {
             case .opening:
                 if markPlayingIfVideoIsAvailable() {
@@ -398,12 +440,15 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             let delayNanoseconds = reconnectDelayNanoseconds
             let delaySeconds = max(1, Int(delayNanoseconds / 1_000_000_000))
             reconnectDelayNanoseconds = min(reconnectDelayNanoseconds * 2, 30_000_000_000)
+            logDiagnostic("reconnect scheduled in \(delaySeconds)s")
             publish(.reconnecting(seconds: delaySeconds))
             reconnectTask = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: delayNanoseconds)
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     guard let self, let currentURL = self.currentURL, self.isActive else { return }
+                    self.logDiagnostic("reconnect executing")
+                    self.previousDisplayed = nil
                     let media = VLCMedia(url: currentURL)
                     self.configure(media: media)
                     self.player.media = media
@@ -468,6 +513,37 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
                     || statistics.demuxBitrate > 0
             }
             return false
+        }
+
+        private func logDiagnostic(_ message: String) {
+            let host = currentURL?.host ?? "none"
+            let port = currentURL?.port ?? 554
+            let path = currentURL?.path ?? ""
+            StreamDebugLog.shared.write("RTSP \(diagnosticID)", "camera=\(diagnosticName) endpoint=\(host):\(port)\(path) \(message)")
+        }
+
+        private func refreshDiagnosticSampling() {
+            diagnosticsTask?.cancel()
+            diagnosticsTask = nil
+            guard StreamDebugLog.shared.isEnabled, isActive, currentURL != nil else { return }
+            previousDisplayed = nil
+            logDiagnostic("diagnostics active")
+            diagnosticsTask = Task { @MainActor [weak self] in
+                while !Task.isCancelled {
+                    self?.logStatistics()
+                    do { try await Task.sleep(nanoseconds: 5_000_000_000) }
+                    catch { return }
+                }
+            }
+        }
+
+        private func logStatistics() {
+            guard StreamDebugLog.shared.isEnabled, isActive, let media = player.media else { return }
+            let stats = media.statistics
+            let delta = previousDisplayed.map { stats.displayedPictures - $0 }
+            previousDisplayed = stats.displayedPictures
+            let size = player.videoSize
+            logDiagnostic("stats state=\(player.state.rawValue) videoOut=\(player.hasVideoOut) size=\(size.width)x\(size.height) decoded=\(stats.decodedVideo) displayed=\(stats.displayedPictures) displayedDelta=\(delta.map(String.init) ?? "initial") lost=\(stats.lostPictures) bytes=\(stats.readBytes) inputBitrate=\(stats.inputBitrate) demuxCorrupted=\(stats.demuxCorrupted) demuxDiscontinuity=\(stats.demuxDiscontinuity) attachments=\(attachmentCount)")
         }
 
         private func configure(media: VLCMedia) {

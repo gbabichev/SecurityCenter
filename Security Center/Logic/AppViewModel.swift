@@ -15,6 +15,7 @@ final class AppViewModel: ObservableObject {
     private var quietHoursTimer: AnyCancellable?
 
     private enum StorageKey {
+        static let debugLoggingEnabled = "debugLoggingEnabled"
         static let camerasJSON = "camerasJSON"
         static let gridsJSON = "gridsJSON"
         static let gridAssignmentsJSON = "gridAssignmentsJSON"
@@ -33,8 +34,28 @@ final class AppViewModel: ObservableObject {
         (defaults.string(forKey: StorageKey.gridsJSON) ?? "").isEmpty
     }
 
+    @Published var debugLoggingEnabled = false {
+        didSet {
+            defaults.set(debugLoggingEnabled, forKey: StorageKey.debugLoggingEnabled)
+            configureDebugLogging()
+        }
+    }
+    @Published private(set) var debugLoggingError: String?
+
+    private func configureDebugLogging() {
+        do {
+            try StreamDebugLog.shared.setEnabled(debugLoggingEnabled)
+            debugLoggingError = nil
+        } catch {
+            debugLoggingError = "Could not open the debug log: \(error.localizedDescription)"
+        }
+        NotificationCenter.default.post(name: .streamDebugLoggingChanged, object: nil)
+    }
+
     @Published var cameras: [CameraConfig] = [] {
         didSet {
+            StreamDebugLog.shared.registerSecrets(cameras.flatMap { [$0.username, $0.password] })
+            for camera in cameras { StreamDebugLog.shared.registerCredentials(in: camera.rtspURL) }
             persistCameras()
             reconcileSelectionAndAvailability()
         }
@@ -111,6 +132,8 @@ final class AppViewModel: ObservableObject {
         loadGridAssignments()
         loadCameras()
         loadQuietHours()
+        debugLoggingEnabled = defaults.bool(forKey: StorageKey.debugLoggingEnabled)
+        configureDebugLogging()
         showQuietHoursInToolbar = defaults.bool(forKey: StorageKey.showQuietHoursInToolbar)
         quietHoursScheduleOverridesManual = defaults.bool(forKey: StorageKey.quietHoursScheduleOverridesManual)
         appTheme = AppTheme(rawValue: defaults.string(forKey: StorageKey.appTheme) ?? AppTheme.system.rawValue) ?? .system

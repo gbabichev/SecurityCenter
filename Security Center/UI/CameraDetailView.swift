@@ -83,6 +83,7 @@ struct CameraDetailView: View {
             RTSPStreamView(
                 url: camera.rtspURL,
                 isMuted: camera.isMuted,
+                diagnosticName: camera.displayName,
                 backgroundColor: viewModel.blurredCameraBackground ? nil : viewModel.viewBackgroundStyle.color,
                 providesBackdrop: viewModel.blurredCameraBackground,
                 onBackdropImageChange: { backdropImage = $0 },

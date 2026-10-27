@@ -12,8 +12,21 @@ import Foundation
 
 @MainActor
 final class SecurityCenterAppDelegate: NSObject, NSApplicationDelegate {
+    private var diagnosticObservers: [NSObjectProtocol] = []
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        StreamDebugLog.shared.write("APP", "launched")
+        for (name, event) in [(NSWorkspace.willSleepNotification, "system will sleep"), (NSWorkspace.didWakeNotification, "system woke")] {
+            diagnosticObservers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) { _ in
+                StreamDebugLog.shared.write("APP", event)
+            })
+        }
         AppUpdateCenter.shared.checkForUpdates(trigger: .automaticLaunch)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        StreamDebugLog.shared.write("APP", "terminating")
+        StreamDebugLog.shared.flush()
     }
 }
 

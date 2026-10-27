@@ -79,3 +79,15 @@ I am continuing to work on improving performance of the iOS branch. Once I am ha
 
 ### 1.0.0
 - Initial macOS release. iOS works, but you have to compile yourself.
+### Streaming debug logs
+
+On macOS, open Settings → General → Diagnostics and turn on **Enable Debug Logging**. It takes effect for streams that are already playing and stays enabled across app restarts. When a glitch occurs, note the approximate time, then use **Show Logs in Finder** to collect `stream-debug.log` and its numbered archives. On iOS, the same option is in Settings → Diagnostics; tap Done to apply it and use **Share Debug Log** to share the active file.
+
+Logs contain camera names, endpoints, playback/reconnect events, native VLC decoder messages, and frame statistics sampled every five seconds. Credentials, authentication headers, and full camera URLs are redacted before writing. The active file and three archives each hold up to 5 MB, retaining approximately 20 MB total. Turning logging off stops recording and preserves existing files. This preference stays on the device and is not included in configuration exports.
+
+Logger regression checks can be run from the repository root:
+
+```sh
+xcrun swiftc -module-cache-path /tmp/securitycenter-log-test-cache 'Security Center/Logic/StreamDebugLog.swift' Tests/StreamDebugLogTests.swift -o /tmp/securitycenter-stream-log-tests
+/tmp/securitycenter-stream-log-tests
+```

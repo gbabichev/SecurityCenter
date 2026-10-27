@@ -1,5 +1,6 @@
 #if os(macOS)
 import SwiftUI
+import AppKit
 import Observation
 
 @MainActor
@@ -53,6 +54,7 @@ struct MacSettingsView: View {
 
 private struct GeneralSettingsPane: View {
     @ObservedObject var viewModel: AppViewModel
+    @State private var logFolderError: String?
 
     var body: some View {
         Form {
@@ -81,8 +83,30 @@ private struct GeneralSettingsPane: View {
             } footer: {
                 Text("Prevent the screen from sleeping, including during quiet hours.")
             }
+            Section {
+                Toggle("Enable Debug Logging", isOn: $viewModel.debugLoggingEnabled)
+                Button("Show Logs in Finder", systemImage: "folder") {
+                    let folder = StreamDebugLog.shared.directoryURL
+                    do {
+                        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                        NSWorkspace.shared.open(folder)
+                    } catch { logFolderError = error.localizedDescription }
+                }
+                if let error = viewModel.debugLoggingError {
+                    Text(error).foregroundStyle(.red)
+                }
+            } header: {
+                Text("Diagnostics")
+            } footer: {
+                Text("Records streaming events, decoder messages, and frame statistics. Keeps up to 20 MB of recent logs, including across app restarts.")
+            }
         }
         .formStyle(.grouped)
+        .alert("Could Not Open Logs", isPresented: Binding(get: { logFolderError != nil }, set: { if !$0 { logFolderError = nil } })) {
+            Button("OK") { logFolderError = nil }
+        } message: {
+            Text(logFolderError ?? "")
+        }
     }
 }
 

@@ -298,6 +298,7 @@ private struct GridCameraContent: View {
             RTSPStreamView(
                 url: camera.rtspURL,
                 isMuted: camera.isMuted,
+                diagnosticName: camera.displayName,
                 scalingMode: gridPictureStyle == .showWholePicture ? .fit : .stretch,
                 backgroundColor: blurredCameraBackground ? nil : backgroundColor,
                 providesBackdrop: blurredCameraBackground && gridPictureStyle == .showWholePicture,
