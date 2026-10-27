@@ -24,6 +24,7 @@ final class AppViewModel: ObservableObject {
         static let appTheme = "appTheme"
         static let viewBackgroundStyle = "viewBackgroundStyle"
         static let keepsScreenAwake = "keepsScreenAwake"
+        static let blurredCameraBackground = "blurredCameraBackground"
         static let showQuietHoursInToolbar = "showQuietHoursInToolbar"
         static let quietHoursScheduleOverridesManual = "quietHoursScheduleOverridesManual"
     }
@@ -63,6 +64,9 @@ final class AppViewModel: ObservableObject {
         didSet {
             defaults.set(viewBackgroundStyle.rawValue, forKey: StorageKey.viewBackgroundStyle)
         }
+    }
+    @Published var blurredCameraBackground = false {
+        didSet { defaults.set(blurredCameraBackground, forKey: StorageKey.blurredCameraBackground) }
     }
     @Published var keepsScreenAwake = false {
         didSet {
@@ -114,6 +118,7 @@ final class AppViewModel: ObservableObject {
             rawValue: defaults.string(forKey: StorageKey.viewBackgroundStyle) ?? ViewBackgroundStyle.systemDefault.rawValue
         ) ?? .systemDefault
         keepsScreenAwake = defaults.bool(forKey: StorageKey.keepsScreenAwake)
+        blurredCameraBackground = defaults.bool(forKey: StorageKey.blurredCameraBackground)
         ScreenAwakeController.shared.setEnabled(keepsScreenAwake)
         gridPictureStyle = GridPictureStyle(
             rawValue: defaults.string(forKey: StorageKey.gridPictureStyle) ?? GridPictureStyle.fillEachBox.rawValue
@@ -241,6 +246,7 @@ final class AppViewModel: ObservableObject {
             gridPictureStyle: gridPictureStyle,
             appTheme: appTheme,
             viewBackgroundStyle: viewBackgroundStyle,
+            blurredCameraBackground: blurredCameraBackground,
             keepsScreenAwake: keepsScreenAwake,
             showQuietHoursInToolbar: showQuietHoursInToolbar,
             quietHoursScheduleOverridesManual: quietHoursScheduleOverridesManual,
@@ -339,6 +345,7 @@ final class AppViewModel: ObservableObject {
             gridPictureStyle = payload.gridPictureStyle
             appTheme = payload.appTheme ?? .system
             viewBackgroundStyle = payload.viewBackgroundStyle ?? .systemDefault
+            blurredCameraBackground = payload.blurredCameraBackground ?? false
             keepsScreenAwake = payload.keepsScreenAwake ?? false
         }
 
@@ -827,6 +834,7 @@ private struct AppConfigurationPayload: Codable {
     let gridPictureStyle: GridPictureStyle
     let appTheme: AppTheme?
     let viewBackgroundStyle: ViewBackgroundStyle?
+    let blurredCameraBackground: Bool?
     let keepsScreenAwake: Bool?
     let showQuietHoursInToolbar: Bool?
     let quietHoursScheduleOverridesManual: Bool?

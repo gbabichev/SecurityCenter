@@ -117,6 +117,7 @@ struct GridDetailView: View {
             camera: camera,
             gridPictureStyle: viewModel.gridPictureStyle,
             backgroundColor: viewModel.viewBackgroundStyle.color,
+            blurredCameraBackground: viewModel.blurredCameraBackground,
             startupDelayNanoseconds: startupDelayNanoseconds(for: index),
             onStatusChange: { status in
                 viewModel.updatePlaybackAvailability(for: camera.id, status: status)
@@ -233,14 +234,19 @@ private struct GridCameraContent: View {
     let camera: CameraConfig
     let gridPictureStyle: GridPictureStyle
     let backgroundColor: Color?
+    let blurredCameraBackground: Bool
     let startupDelayNanoseconds: UInt64
     let onStatusChange: (SnapshotStatus) -> Void
+    @State private var backdropImage: PlatformImage?
     @State private var isReady = false
     @State private var status: SnapshotStatus = .loading
     @State private var rtspPlaybackState: RTSPPlaybackState = .connecting
 
     var body: some View {
         ZStack {
+            if blurredCameraBackground, camera.isEnabled, let backdropImage {
+                CameraBackdrop(image: backdropImage)
+            }
             Group {
                 if !camera.isEnabled {
                     disabledContent
@@ -255,7 +261,12 @@ private struct GridCameraContent: View {
                 statusOverlay
             }
         }
+        .background(backgroundColor ?? .clear)
+        .clipped()
+        .onChange(of: blurredCameraBackground) { _, _ in backdropImage = nil }
+        .onChange(of: camera) { _, _ in backdropImage = nil }
         .task(id: startupKey) {
+            backdropImage = nil
             isReady = false
             status = .loading
             rtspPlaybackState = .connecting
@@ -276,7 +287,9 @@ private struct GridCameraContent: View {
                 url: camera.snapshotURL,
                 scalingMode: gridPictureStyle == .showWholePicture ? .fit : .stretch,
                 pollingIntervalSeconds: camera.snapshotPollingIntervalSeconds,
-                backgroundColor: backgroundColor
+                backgroundColor: blurredCameraBackground ? nil : backgroundColor,
+                providesBackdrop: blurredCameraBackground && gridPictureStyle == .showWholePicture,
+                onBackdropImageChange: { backdropImage = $0 }
             ) { newStatus in
                 status = newStatus
                 onStatusChange(newStatus)
@@ -286,7 +299,9 @@ private struct GridCameraContent: View {
                 url: camera.rtspURL,
                 isMuted: camera.isMuted,
                 scalingMode: gridPictureStyle == .showWholePicture ? .fit : .stretch,
-                backgroundColor: backgroundColor,
+                backgroundColor: blurredCameraBackground ? nil : backgroundColor,
+                providesBackdrop: blurredCameraBackground && gridPictureStyle == .showWholePicture,
+                onBackdropImageChange: { backdropImage = $0 },
                 onStatusChange: { newStatus in
                     status = newStatus
                     onStatusChange(newStatus)

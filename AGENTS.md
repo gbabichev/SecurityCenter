@@ -118,6 +118,15 @@
   - `speaker.wave.2.fill` when not muted
   - `speaker.slash.fill` when muted
 
+## Camera Background Blur
+- Appearance includes an optional Blur camera background setting (off by default), persisted by AppViewModel and included in JSON display settings.
+- CameraBackdrop matches the gallery treatment: 80-point overscan, 30-point blur, and 35% black overlay.
+- JPG reuses the downloaded image. RTSP captures 256-pixel frames from its existing VLC player once when video is ready and then every 30 minutes, with no second connection.
+- RTSP captures use a temporary directory that is removed when capture stops; snapshot previews and VLC on-screen messages are disabled to prevent filename popups.
+- Capture readiness uses actual VLC video output, not state == playing: VLC can remain buffering while rendering. Publish captured frames from mediaPlayerSnapshot completion callbacks.
+- Single-camera views and grids using Keep camera shape can show the backdrop. Match box shape skips captures because no gaps remain.
+- Quiet hours remove the camera views and stop capture; disabled cameras do not show a backdrop.
+
 ## Grid Notes
 - Hardcoded grid presets were removed.
 - Default grid is `2x2`.

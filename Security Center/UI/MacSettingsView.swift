@@ -57,6 +57,7 @@ private struct GeneralSettingsPane: View {
     var body: some View {
         Form {
             Section("Appearance") {
+                Toggle("Blur camera background", isOn: $viewModel.blurredCameraBackground)
                 Picker("Theme", selection: $viewModel.appTheme) {
                     ForEach(AppTheme.allCases) { Text($0.title).tag($0) }
                 }

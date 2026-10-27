@@ -18,6 +18,8 @@ struct SnapshotView: View {
     var scalingMode: SnapshotScalingMode = .fit
     var pollingIntervalSeconds = 1
     var backgroundColor: Color?
+    var providesBackdrop = false
+    var onBackdropImageChange: (PlatformImage?) -> Void = { _ in }
     @State private var image: PlatformImage?
     let onStatusChange: (SnapshotStatus) -> Void
 
@@ -40,8 +42,12 @@ struct SnapshotView: View {
         }
         .task(id: SnapshotTaskKey(url: url, pollingIntervalSeconds: normalizedPollingIntervalSeconds)) {
             image = nil
+            onBackdropImageChange(nil)
             onStatusChange(.loading)
             await poll()
+        }
+        .onChange(of: providesBackdrop) { _, isEnabled in
+            onBackdropImageChange(isEnabled ? image : nil)
         }
     }
 
@@ -98,12 +104,15 @@ struct SnapshotView: View {
     @MainActor
     private func markSnapshotFailure() {
         image = nil
+        onBackdropImageChange(nil)
         onStatusChange(.failed)
     }
 
     @MainActor
     private func markSnapshotSuccess(_ decoded: PlatformImage) {
+        guard !Task.isCancelled else { return }
         image = decoded
+        if providesBackdrop { onBackdropImageChange(decoded) }
         onStatusChange(.ok)
     }
 

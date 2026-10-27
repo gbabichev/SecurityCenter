@@ -36,6 +36,7 @@ struct CameraSettingsView: View {
     @State private var showingDeleteCameraConfirmation = false
     @State private var didCopySourceURL = false
     @State private var appThemeDraft: AppTheme = .system
+    @State private var blurredCameraBackgroundDraft = false
     @State private var viewBackgroundStyleDraft: ViewBackgroundStyle = .systemDefault
     @State private var keepsScreenAwakeDraft = false
     @State private var gridPictureStyleDraft: GridPictureStyle = .fillEachBox
@@ -282,6 +283,8 @@ struct CameraSettingsView: View {
                         columns: 3
                     ) { $0.title }
                 }
+
+                Toggle("Blur camera background", isOn: $blurredCameraBackgroundDraft)
 
                 fieldBlock(title: "Keep Screen Awake", caption: "Prevent the screen from sleeping, including during quiet hours.") {
                     HStack {
@@ -1190,6 +1193,7 @@ struct CameraSettingsView: View {
 
     private var hasUnsavedAppSettingsChanges: Bool {
         appThemeDraft != viewModel.appTheme
+            || blurredCameraBackgroundDraft != viewModel.blurredCameraBackground
             || viewBackgroundStyleDraft != viewModel.viewBackgroundStyle
             || keepsScreenAwakeDraft != viewModel.keepsScreenAwake
             || gridPictureStyleDraft != viewModel.gridPictureStyle
@@ -1587,6 +1591,7 @@ struct CameraSettingsView: View {
 
     private func saveAppSettings() {
         viewModel.appTheme = appThemeDraft
+        viewModel.blurredCameraBackground = blurredCameraBackgroundDraft
         viewModel.viewBackgroundStyle = viewBackgroundStyleDraft
         viewModel.keepsScreenAwake = keepsScreenAwakeDraft
         viewModel.gridPictureStyle = gridPictureStyleDraft
@@ -1597,6 +1602,7 @@ struct CameraSettingsView: View {
 
     private func syncAppSettingsDraft() {
         appThemeDraft = viewModel.appTheme
+        blurredCameraBackgroundDraft = viewModel.blurredCameraBackground
         viewBackgroundStyleDraft = viewModel.viewBackgroundStyle
         keepsScreenAwakeDraft = viewModel.keepsScreenAwake
         gridPictureStyleDraft = viewModel.gridPictureStyle

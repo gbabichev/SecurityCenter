@@ -11,6 +11,7 @@ struct CameraDetailView: View {
     @ObservedObject var viewModel: AppViewModel
     let camera: CameraConfig
     let isSettingsPresented: Bool
+    @State private var backdropImage: PlatformImage?
     @State private var streamStatus: SnapshotStatus = .loading
     @State private var rtspPlaybackState: RTSPPlaybackState = .connecting
 
@@ -18,6 +19,10 @@ struct CameraDetailView: View {
         GeometryReader { proxy in
             ZStack {
                 viewBackground
+                if viewModel.blurredCameraBackground, !viewModel.isQuietHoursActive, camera.isEnabled, let backdropImage {
+                    CameraBackdrop(image: backdropImage)
+                        .ignoresSafeArea(.container)
+                }
 
                 ZStack {
                     if viewModel.isQuietHoursActive {
@@ -38,11 +43,14 @@ struct CameraDetailView: View {
                 )
             }
         }
+        .onChange(of: camera) { _, _ in backdropImage = nil }
+        .onChange(of: viewModel.blurredCameraBackground) { _, _ in backdropImage = nil }
         .onChange(of: camera.feedMode) {
             streamStatus = .loading
             rtspPlaybackState = .connecting
         }
         .onChange(of: viewModel.isQuietHoursActive) { _, isActive in
+            backdropImage = nil
             streamStatus = isActive ? .ok : .loading
             rtspPlaybackState = .connecting
         }
@@ -65,7 +73,9 @@ struct CameraDetailView: View {
                 url: camera.snapshotURL,
                 scalingMode: .fit,
                 pollingIntervalSeconds: camera.snapshotPollingIntervalSeconds,
-                backgroundColor: viewModel.viewBackgroundStyle.color
+                backgroundColor: viewModel.blurredCameraBackground ? nil : viewModel.viewBackgroundStyle.color,
+                providesBackdrop: viewModel.blurredCameraBackground,
+                onBackdropImageChange: { backdropImage = $0 }
             ) { status in
                 streamStatus = status
                 viewModel.updatePlaybackAvailability(for: camera.id, status: status)
@@ -74,7 +84,9 @@ struct CameraDetailView: View {
             RTSPStreamView(
                 url: camera.rtspURL,
                 isMuted: camera.isMuted,
-                backgroundColor: viewModel.viewBackgroundStyle.color,
+                backgroundColor: viewModel.blurredCameraBackground ? nil : viewModel.viewBackgroundStyle.color,
+                providesBackdrop: viewModel.blurredCameraBackground,
+                onBackdropImageChange: { backdropImage = $0 },
                 onStatusChange: { status in
                     streamStatus = status
                     viewModel.updatePlaybackAvailability(for: camera.id, status: status)

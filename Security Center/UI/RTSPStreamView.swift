@@ -49,6 +49,8 @@ enum RTSPPlaybackState: Equatable {
 
 private enum RTSPVLCConfiguration {
     static let sharedLibrary = VLCLibrary(options: [
+        "--no-snapshot-preview",
+        "--no-osd",
         "--rtsp-tcp",
         "--network-caching=1000",
         "--live-caching=1000"
@@ -66,6 +68,8 @@ struct RTSPStreamView: View {
     let isMuted: Bool
     var scalingMode: RTSPScalingMode = .fit
     var backgroundColor: Color?
+    var providesBackdrop = false
+    var onBackdropImageChange: (PlatformImage?) -> Void = { _ in }
     let onStatusChange: (SnapshotStatus) -> Void
     var onPlaybackStateChange: (RTSPPlaybackState) -> Void = { _ in }
     @State private var videoAspectRatio: CGFloat = 16.0 / 9.0
@@ -84,6 +88,8 @@ struct RTSPStreamView: View {
                     url: url,
                     isMuted: isMuted,
                     backgroundColor: backgroundColor,
+                    providesBackdrop: providesBackdrop,
+                    onBackdropImageChange: onBackdropImageChange,
                     onStatusChange: onStatusChange,
                     onPlaybackStateChange: onPlaybackStateChange,
                     onVideoSizeChange: updateVideoAspectRatio
@@ -146,6 +152,8 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
     let url: URL?
     let isMuted: Bool
     let backgroundColor: Color?
+    let providesBackdrop: Bool
+    let onBackdropImageChange: (PlatformImage?) -> Void
     let onStatusChange: (SnapshotStatus) -> Void
     let onPlaybackStateChange: (RTSPPlaybackState) -> Void
     let onVideoSizeChange: (CGSize) -> Void
@@ -154,7 +162,8 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         Coordinator(
             onStatusChange: onStatusChange,
             onPlaybackStateChange: onPlaybackStateChange,
-            onVideoSizeChange: onVideoSizeChange
+            onVideoSizeChange: onVideoSizeChange,
+            onBackdropImageChange: onBackdropImageChange
         )
     }
 
@@ -163,14 +172,14 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         let view = VLCPlatformView()
         view.backgroundColor = backgroundColor.map(UIColor.init) ?? .clear
         context.coordinator.attach(to: view)
-        context.coordinator.update(url: url, isMuted: isMuted)
+        context.coordinator.update(url: url, isMuted: isMuted, providesBackdrop: providesBackdrop)
         return view
     }
 
     func updateUIView(_ view: VLCPlatformView, context: Context) {
         view.backgroundColor = backgroundColor.map(UIColor.init) ?? .clear
         context.coordinator.attach(to: view)
-        context.coordinator.update(url: url, isMuted: isMuted)
+        context.coordinator.update(url: url, isMuted: isMuted, providesBackdrop: providesBackdrop)
     }
 
     static func dismantleUIView(_ view: VLCPlatformView, coordinator: Coordinator) {
@@ -181,14 +190,14 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         let view = VLCPlatformView()
         view.backColor = backgroundColor.map(NSColor.init) ?? .clear
         context.coordinator.attach(to: view)
-        context.coordinator.update(url: url, isMuted: isMuted)
+        context.coordinator.update(url: url, isMuted: isMuted, providesBackdrop: providesBackdrop)
         return view
     }
 
     func updateNSView(_ view: VLCPlatformView, context: Context) {
         view.backColor = backgroundColor.map(NSColor.init) ?? .clear
         context.coordinator.attach(to: view)
-        context.coordinator.update(url: url, isMuted: isMuted)
+        context.coordinator.update(url: url, isMuted: isMuted, providesBackdrop: providesBackdrop)
     }
 
     static func dismantleNSView(_ view: VLCPlatformView, coordinator: Coordinator) {
@@ -201,6 +210,12 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         private let onStatusChange: (SnapshotStatus) -> Void
         private let onPlaybackStateChange: (RTSPPlaybackState) -> Void
         private let onVideoSizeChange: (CGSize) -> Void
+        private let onBackdropImageChange: (PlatformImage?) -> Void
+        private var backdropTask: Task<Void, Never>?
+        private var backdropDirectory: URL?
+        private var backdropEnabled = false
+        private var lastBackdropCaptureAt: Date?
+        private static let backdropRefreshInterval: TimeInterval = 30 * 60
         private var currentURL: URL?
         private var currentIsMuted = false
         private var reconnectTask: Task<Void, Never>?
@@ -212,16 +227,20 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         init(
             onStatusChange: @escaping (SnapshotStatus) -> Void,
             onPlaybackStateChange: @escaping (RTSPPlaybackState) -> Void,
-            onVideoSizeChange: @escaping (CGSize) -> Void
+            onVideoSizeChange: @escaping (CGSize) -> Void,
+            onBackdropImageChange: @escaping (PlatformImage?) -> Void
         ) {
             self.onStatusChange = onStatusChange
             self.onPlaybackStateChange = onPlaybackStateChange
             self.onVideoSizeChange = onVideoSizeChange
+            self.onBackdropImageChange = onBackdropImageChange
             super.init()
             player.delegate = self
         }
 
         deinit {
+            backdropTask?.cancel()
+            if let backdropDirectory { try? FileManager.default.removeItem(at: backdropDirectory) }
             reconnectTask?.cancel()
             videoReadyTask?.cancel()
         }
@@ -236,8 +255,13 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             applyMute()
         }
 
-        func update(url: URL?, isMuted: Bool) {
+        func update(url: URL?, isMuted: Bool, providesBackdrop: Bool) {
             let didURLChange = currentURL != url
+            if didURLChange || backdropEnabled != providesBackdrop {
+                stopBackdropCapture()
+                backdropEnabled = providesBackdrop
+                if providesBackdrop && url != nil { startBackdropCapture() }
+            }
             let didMuteChange = currentIsMuted != isMuted
             guard didURLChange || didMuteChange else { return }
             currentIsMuted = isMuted
@@ -266,6 +290,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         }
 
         func stop() {
+            stopBackdropCapture()
             isActive = false
             reconnectTask?.cancel()
             reconnectTask = nil
@@ -274,6 +299,63 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             reconnectDelayNanoseconds = 2_000_000_000
             player.stop()
             player.media = nil
+        }
+
+        private func startBackdropCapture() {
+            let directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent("SecurityCenterBackdrop-" + UUID().uuidString, isDirectory: true)
+            do {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            } catch { return }
+            backdropDirectory = directory
+            backdropTask = Task { @MainActor [weak self] in
+                while !Task.isCancelled {
+                    let delay = self?.captureBackdrop() ?? 1_000_000_000
+                    do { try await Task.sleep(nanoseconds: delay) }
+                    catch { return }
+                }
+            }
+        }
+
+        private func captureBackdrop() -> UInt64 {
+            guard isActive, backdropEnabled, let backdropDirectory else { return 1_000_000_000 }
+            if let lastBackdropCaptureAt {
+                let remaining = Self.backdropRefreshInterval - Date().timeIntervalSince(lastBackdropCaptureAt)
+                if remaining > 0 { return UInt64(max(1, remaining) * 1_000_000_000) }
+            }
+            let file = backdropDirectory.appendingPathComponent("frame.png")
+            // Live streams can keep reporting .buffering while displaying video.
+            guard hasShownVideo, player.hasVideoOut else {
+                try? FileManager.default.removeItem(at: file)
+                onBackdropImageChange(nil)
+                return 1_000_000_000
+            }
+            player.saveVideoSnapshot(at: file.path, withWidth: 256, andHeight: 0)
+            // Retry promptly until the first successful frame; then sleep until it is due.
+            return 1_000_000_000
+        }
+
+        func mediaPlayerSnapshot(_ notification: Notification) {
+            Task { @MainActor [weak self] in self?.publishBackdropSnapshot() }
+        }
+
+        private func publishBackdropSnapshot() {
+            guard isActive, backdropEnabled, let backdropDirectory else { return }
+            let file = backdropDirectory.appendingPathComponent("frame.png")
+            if let data = try? Data(contentsOf: file), let image = PlatformImage(data: data) {
+                lastBackdropCaptureAt = Date()
+                onBackdropImageChange(image)
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+
+        private func stopBackdropCapture() {
+            backdropTask?.cancel()
+            backdropTask = nil
+            if let backdropDirectory { try? FileManager.default.removeItem(at: backdropDirectory) }
+            backdropDirectory = nil
+            lastBackdropCaptureAt = nil
+            Task { @MainActor [onBackdropImageChange] in onBackdropImageChange(nil) }
         }
 
         func mediaPlayerStateChanged(_ notification: Notification) {
