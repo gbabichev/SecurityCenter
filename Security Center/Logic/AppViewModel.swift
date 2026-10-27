@@ -231,7 +231,6 @@ final class AppViewModel: ObservableObject {
     }
 
     func toggleManualQuietHours() {
-        guard showQuietHoursInToolbar else { return }
         quietHoursManualOverride = isQuietHoursActive ? false : true
         refreshQuietHoursState()
     }

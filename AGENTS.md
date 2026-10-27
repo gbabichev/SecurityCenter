@@ -118,6 +118,8 @@
   - `speaker.wave.2.fill` when not muted
   - `speaker.slash.fill` when muted
 
+- macOS View > Turn On/Off Quiet Hours uses ⌘⇧M and works even when the toolbar moon button is hidden.
+
 ## Camera Background Blur
 - Appearance includes an optional Blur camera background setting (off by default), persisted by AppViewModel and included in JSON display settings.
 - CameraBackdrop matches the gallery treatment: 80-point overscan, 30-point blur, and 35% black overlay.

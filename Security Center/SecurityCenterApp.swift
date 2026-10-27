@@ -56,6 +56,18 @@ struct SecurityCenterApp: App {
                 .keyboardShortcut("n")
             }
 
+            CommandGroup(after: .toolbar) {
+                Button {
+                    viewModel.toggleManualQuietHours()
+                } label: {
+                    Label(
+                        viewModel.isQuietHoursActive ? "Turn Off Quiet Hours" : "Turn On Quiet Hours",
+                        systemImage: "moon"
+                    )
+                }
+                .keyboardShortcut("m", modifiers: [.command, .shift])
+            }
+
         }
 
 #endif
