@@ -63,25 +63,31 @@ private struct GridSettingsRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "square.grid.2x2")
-                .foregroundStyle(.secondary)
-                .frame(width: 24)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(grid.title).fontWeight(.medium)
-                Text("\(grid.columns) columns × \(grid.rows) rows · \(grid.maxItems) slots")
-                    .font(.caption)
+            HStack(spacing: 12) {
+                Image(systemName: "square.grid.2x2")
                     .foregroundStyle(.secondary)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(grid.title).fontWeight(.medium)
+                    Text("\(grid.columns) columns × \(grid.rows) rows · \(grid.maxItems) slots")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
             }
-            Spacer()
-            Button("Edit…", action: onEdit)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2, perform: onEdit)
+            Button("Edit…", systemImage: "pencil", action: onEdit)
+                .buttonStyle(.bordered)
+                .labelStyle(.iconOnly)
+                .help("Edit grid")
             Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
+                .buttonStyle(.bordered)
                 .labelStyle(.iconOnly)
                 .disabled(!canDelete)
                 .help(canDelete ? "Delete grid" : "Keep at least one grid. Use Reset Grids in Configuration to start over.")
         }
         .padding(.vertical, 6)
-        .contentShape(Rectangle())
-        .onTapGesture(count: 2, perform: onEdit)
         .contextMenu {
             Button("Edit Grid…", action: onEdit)
             Button("Delete Grid", role: .destructive, action: onDelete)

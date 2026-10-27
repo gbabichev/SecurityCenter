@@ -238,31 +238,37 @@ private struct MacCameraSettingsRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: camera.isEnabled ? "video" : "video.slash")
-                .foregroundStyle(.secondary)
-                .frame(width: 24)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(camera.displayName).fontWeight(.medium)
-                HStack(spacing: 6) {
-                    Text(camera.hostSummary)
-                    if camera.feedMode == .rtsp {
-                        Image(systemName: camera.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                            .accessibilityLabel(camera.isMuted ? "Muted" : "Audio enabled")
+            HStack(spacing: 12) {
+                Image(systemName: camera.isEnabled ? "video" : "video.slash")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(camera.displayName).fontWeight(.medium)
+                    HStack(spacing: 6) {
+                        Text(camera.hostSummary)
+                        if camera.feedMode == .rtsp {
+                            Image(systemName: camera.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                                .accessibilityLabel(camera.isMuted ? "Muted" : "Audio enabled")
+                        }
+                        if !camera.isEnabled { Text("Disabled") }
                     }
-                    if !camera.isEnabled { Text("Disabled") }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Spacer()
             }
-            Spacer()
-            Button("Edit…", action: onEdit)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2, perform: onEdit)
+            Button("Edit…", systemImage: "pencil", action: onEdit)
+                .buttonStyle(.bordered)
+                .labelStyle(.iconOnly)
+                .help("Edit camera")
             Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
+                .buttonStyle(.bordered)
                 .labelStyle(.iconOnly)
                 .help("Delete camera")
         }
         .padding(.vertical, 6)
-        .contentShape(Rectangle())
-        .onTapGesture(count: 2, perform: onEdit)
     }
 }
 #endif
