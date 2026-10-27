@@ -67,15 +67,19 @@ struct AboutView: View {
 #endif
 
     var body: some View {
-        VStack(spacing: 18) {
-            LiveAppIconView()
+        VStack(spacing: 20) {
+            VStack(spacing: 10) {
+                LiveAppIconView()
 
-            VStack(spacing: 4) {
                 Text(appName)
                     .font(.title.weight(.semibold))
                 Text("Local camera monitoring for macOS and iOS")
-                    .foregroundColor(.secondary)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 320)
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -84,7 +88,12 @@ struct AboutView: View {
                 AboutRow(label: "Developer", value: "George Babichev")
                 AboutRow(label: "Copyright", value: "© \(Calendar.current.component(.year, from: Date())) George Babichev")
             }
+            .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.primary.opacity(0.045))
+            )
 
             developerCard
 
@@ -97,10 +106,9 @@ struct AboutView: View {
             Text("Security Center is an open source app for viewing the cameras and streams you add.")
                 .font(.callout)
                 .foregroundColor(.secondary)
-                .multilineTextAlignment(.leading)
-                .lineLimit(nil)
+                .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: 330)
 
             Divider()
 
@@ -121,9 +129,10 @@ struct AboutView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(24)
+        .padding(.horizontal, 26)
+        .padding(.vertical, 24)
 #if os(macOS)
-        .frame(width: 420)
+        .frame(width: 410)
 #else
         .frame(maxWidth: .infinity)
 #endif
@@ -147,9 +156,9 @@ struct AboutView: View {
 
             if let lastStatusMessage = updateCenter.lastStatusMessage {
                 Text(lastStatusMessage)
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .multilineTextAlignment(.center)
             }
         }
         .frame(maxWidth: .infinity)
@@ -164,7 +173,6 @@ struct AboutView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: 64, height: 64)
-                    .offset(y: 6)
                     .clipShape(Circle())
                     .overlay(Circle().stroke(Color.secondary.opacity(0.2), lineWidth: 1))
 
@@ -172,11 +180,20 @@ struct AboutView: View {
                     Text("George Babichev")
                         .font(.headline)
                     if let developerWebsiteURL {
-                        Link("georgebabichev.com", destination: developerWebsiteURL)
+                        Link(destination: developerWebsiteURL) {
+                            HStack(spacing: 4) {
+                                Text("georgebabichev.com")
+                                Image(systemName: "arrow.up.right")
+                                    .font(.caption2.weight(.semibold))
+                            }
                             .font(.subheadline)
+                        }
                     }
                 }
+
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -207,18 +224,24 @@ struct AboutView: View {
 }
 
 private struct AboutRow: View {
-    let label: String
+    let label: LocalizedStringKey
     let value: String
 
     var body: some View {
-        HStack {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
             Text(label)
                 .font(.subheadline)
-                .foregroundColor(.secondary)
-            Spacer()
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: true, vertical: false)
+
+            Spacer(minLength: 12)
+
             Text(value)
                 .font(.subheadline)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -254,7 +277,7 @@ struct AboutOverlayView: View {
             VStack {
                 ZStack(alignment: .topTrailing) {
                     AboutView()
-                        .frame(maxWidth: 420)
+                        .frame(maxWidth: 410)
                         .background(
                             RoundedRectangle(cornerRadius: 24, style: .continuous)
                                 .fill(Color(NSColor.windowBackgroundColor))
