@@ -107,6 +107,8 @@ struct RTSPStreamView: View {
                     onPlaybackStateChange: onPlaybackStateChange,
                     onVideoSizeChange: updateVideoAspectRatio
                 )
+                // Audio is selected when media opens. A mute change needs a fresh player.
+                .id(isMuted)
                 .frame(width: baseSize.width, height: baseSize.height)
                 .scaleEffect(x: scale.width, y: scale.height)
             }
@@ -543,13 +545,17 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             let delta = previousDisplayed.map { stats.displayedPictures - $0 }
             previousDisplayed = stats.displayedPictures
             let size = player.videoSize
-            logDiagnostic("stats state=\(player.state.rawValue) videoOut=\(player.hasVideoOut) size=\(size.width)x\(size.height) decoded=\(stats.decodedVideo) displayed=\(stats.displayedPictures) displayedDelta=\(delta.map(String.init) ?? "initial") lost=\(stats.lostPictures) bytes=\(stats.readBytes) inputBitrate=\(stats.inputBitrate) demuxCorrupted=\(stats.demuxCorrupted) demuxDiscontinuity=\(stats.demuxDiscontinuity) attachments=\(attachmentCount)")
+            logDiagnostic("stats state=\(player.state.rawValue) videoOut=\(player.hasVideoOut) size=\(size.width)x\(size.height) decoded=\(stats.decodedVideo) displayed=\(stats.displayedPictures) displayedDelta=\(delta.map(String.init) ?? "initial") lost=\(stats.lostPictures) audioProcessing=\(currentIsMuted ? "disabled" : "enabled") audioDecoded=\(stats.decodedAudio) audioPlayed=\(stats.playedAudioBuffers) bytes=\(stats.readBytes) inputBitrate=\(stats.inputBitrate) demuxCorrupted=\(stats.demuxCorrupted) demuxDiscontinuity=\(stats.demuxDiscontinuity) attachments=\(attachmentCount)")
         }
 
         private func configure(media: VLCMedia) {
             for option in RTSPVLCConfiguration.mediaOptions {
                 media.addOption(option)
             }
+            if currentIsMuted {
+                media.addOption("no-audio")
+            }
+            logDiagnostic("media configured; audioProcessing=\(currentIsMuted ? "disabled" : "enabled") caching=1000ms transport=tcp")
         }
 
         private func applyMute() {

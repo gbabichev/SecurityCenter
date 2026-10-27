@@ -91,3 +91,5 @@ Logger regression checks can be run from the repository root:
 xcrun swiftc -module-cache-path /tmp/securitycenter-log-test-cache 'Security Center/Logic/StreamDebugLog.swift' Tests/StreamDebugLogTests.swift -o /tmp/securitycenter-stream-log-tests
 /tmp/securitycenter-stream-log-tests
 ```
+
+Muted RTSP cameras skip audio processing entirely. Changing mute briefly reconnects the stream to apply the new audio mode. Diagnostic samples identify `audioProcessing=disabled` or `enabled` and report `audioDecoded`/`audioPlayed` counters so audio timing changes can be compared with a saved baseline.

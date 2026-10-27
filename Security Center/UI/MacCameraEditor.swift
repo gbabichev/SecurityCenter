@@ -179,8 +179,12 @@ private struct CameraPlaybackFields: View {
                 }
             }
             if draft.kind == .genericRTSP || draft.feedMode == .rtsp {
-                Section("Sound") {
+                Section {
                     Toggle("Mute camera", isOn: $draft.isMuted)
+                } header: {
+                    Text("Sound")
+                } footer: {
+                    Text("Muted cameras skip audio processing. Changing this setting briefly reconnects the stream.")
                 }
             }
         }
