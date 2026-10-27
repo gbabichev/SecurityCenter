@@ -136,6 +136,7 @@ private struct QuietHoursSettingsPane: View {
 
 struct MacCameraSettingsList: View {
     @ObservedObject var viewModel: AppViewModel
+    @State private var cameraToDelete: CameraConfig?
     let onAdd: () -> Void
     let onEdit: (CameraConfig) -> Void
 
@@ -148,13 +149,28 @@ struct MacCameraSettingsList: View {
                 MacCameraSettingsHeader(count: viewModel.cameras.count, onAdd: onAdd)
                 Divider()
                 List(viewModel.cameras) { camera in
-                    MacCameraSettingsRow(camera: camera, onEdit: { onEdit(camera) })
+                    MacCameraSettingsRow(
+                        camera: camera,
+                        onEdit: { onEdit(camera) },
+                        onDelete: { cameraToDelete = camera }
+                    )
                         .contextMenu {
                             Button("Edit…") { onEdit(camera) }
-                            Button("Delete", role: .destructive) { viewModel.deleteCamera(camera) }
+                            Button("Delete", role: .destructive) { cameraToDelete = camera }
                         }
                 }
                 .listStyle(.inset)
+            }
+            .alert(item: $cameraToDelete) { camera in
+                Alert(
+                    title: Text("Delete Camera?"),
+                    message: Text("Delete “\(camera.displayName)” and remove it from all grids? This cannot be undone."),
+                    primaryButton: .destructive(Text("Delete Camera")) {
+                        cameraToDelete = nil
+                        DispatchQueue.main.async { viewModel.deleteCamera(camera) }
+                    },
+                    secondaryButton: .cancel()
+                )
             }
         }
     }
@@ -194,6 +210,7 @@ private struct MacCameraSettingsHeader: View {
 private struct MacCameraSettingsRow: View {
     let camera: CameraConfig
     let onEdit: () -> Void
+    let onDelete: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -215,6 +232,9 @@ private struct MacCameraSettingsRow: View {
             }
             Spacer()
             Button("Edit…", action: onEdit)
+            Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
+                .labelStyle(.iconOnly)
+                .help("Delete camera")
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
