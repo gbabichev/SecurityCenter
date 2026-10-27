@@ -28,7 +28,8 @@ struct CameraSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var draft = CameraConfig.emptyDraft
     @State private var selectedCameraID: CameraConfig.ID?
-    @State private var editorState: EditorState = .idle
+    @State private var editorState: CameraEditorState = .idle
+    @State private var connectionCheckState: CameraEditorState = .idle
     @State private var isPasswordVisible = false
     @State private var pendingLeaveAction: PendingLeaveAction?
     @State private var showingUnsavedChangesAlert = false
@@ -70,8 +71,9 @@ struct CameraSettingsView: View {
             handleMacCameraRequest()
         }
         .onChange(of: draft) { _, _ in
-            guard !editorState.isValidating else { return }
+            guard !editorState.isValidating, !connectionCheckState.isValidating else { return }
             editorState = .idle
+            connectionCheckState = .idle
         }
         .onChange(of: draft.kind) { _, kind in
             if kind == .genericRTSP {
@@ -124,8 +126,9 @@ struct CameraSettingsView: View {
             handleInitialPresentationIfNeeded()
         }
         .onChange(of: draft) { _, _ in
-            guard !editorState.isValidating else { return }
+            guard !editorState.isValidating, !connectionCheckState.isValidating else { return }
             editorState = .idle
+            connectionCheckState = .idle
         }
         .onChange(of: draft.kind) { _, kind in
             if kind == .genericRTSP {
@@ -544,7 +547,24 @@ struct CameraSettingsView: View {
 #endif
     }
 
-    private var cameraEditorSheet: some View {
+    private var cameraEditorSheetContent: some View {
+#if os(macOS)
+        MacCameraEditor(
+            draft: $draft,
+            state: editorState,
+            connectionCheckState: connectionCheckState,
+            hasUnsavedChanges: hasUnsavedCameraChanges,
+            isEditing: isEditing,
+            canSave: !isPrimaryActionDisabled,
+            didCopyLink: didCopySourceURL,
+            onCancel: { attemptToLeaveEditor(.dismissEditor) },
+            onSave: saveCamera,
+            onDelete: { showingDeleteCameraConfirmation = true },
+            onCopy: copyCamera,
+            onCopyLink: copySourceURLToClipboard,
+            onCheckConnection: checkCameraConnection
+        )
+#else
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -570,6 +590,11 @@ struct CameraSettingsView: View {
             cameraActionBar
         }
         .padding(16)
+#endif
+    }
+
+    private var cameraEditorSheet: some View {
+        cameraEditorSheetContent
         .alert("Unsaved Changes", isPresented: $showingUnsavedChangesAlert) {
             Button("Keep Editing", role: .cancel) {
                 pendingLeaveAction = nil
@@ -593,9 +618,6 @@ struct CameraSettingsView: View {
             Text("This will permanently remove the camera from the app.")
         }
         .interactiveDismissDisabled(hasUnsavedCameraChanges)
-#if os(macOS)
-        .frame(minWidth: 760, minHeight: 620)
-#endif
     }
 
     private var editorCard: some View {
@@ -1382,6 +1404,20 @@ struct CameraSettingsView: View {
     }
     #endif
 
+    private func checkCameraConnection() {
+        guard !editorState.isValidating, !connectionCheckState.isValidating else { return }
+        let candidate = draft
+        connectionCheckState = .validating
+        Task {
+            do {
+                try await viewModel.checkCameraConnection(from: candidate)
+                connectionCheckState = .success("Connection successful.")
+            } catch {
+                connectionCheckState = .failure(error.localizedDescription)
+            }
+        }
+    }
+
     private func saveCamera() {
         let candidate = draft
         let editingID = selectedCameraID
@@ -1545,6 +1581,7 @@ struct CameraSettingsView: View {
         selectedCameraID = nil
         draft = .emptyDraft
         editorState = .idle
+        connectionCheckState = .idle
         isPasswordVisible = false
     }
 
@@ -1593,7 +1630,7 @@ private struct ConfigurationAlert: Identifiable {
 }
 #endif
 
-private enum EditorState {
+enum CameraEditorState {
     case idle
     case validating
     case success(String)

@@ -629,7 +629,19 @@ final class AppViewModel: ObservableObject {
         gridAssignments = migratedAssignments
     }
 
-    private func validateCamera(_ camera: CameraConfig, ignoring ignoredID: CameraConfig.ID?) async throws {
+    func checkCameraConnection(from draft: CameraConfig) async throws {
+        let camera = draft.sanitized
+        try validateCameraAddress(camera)
+        switch camera.feedMode {
+        case .snapshotPolling:
+            // An explicit connection test must not probe the opposite protocol.
+            try await performSnapshotValidation(camera: camera, timeout: 8)
+        case .rtsp:
+            try await RTSPConnectionService.validate(camera: camera)
+        }
+    }
+
+    private func validateCameraAddress(_ camera: CameraConfig) throws {
         switch camera.kind {
         case .reolink:
             guard !camera.host.isEmpty else {
@@ -644,6 +656,10 @@ final class AppViewModel: ObservableObject {
         guard validationURL(for: camera) != nil else {
             throw CameraValidationError.invalidURL
         }
+    }
+
+    private func validateCamera(_ camera: CameraConfig, ignoring ignoredID: CameraConfig.ID?) async throws {
+        try validateCameraAddress(camera)
         guard !cameras.contains(where: { existing in
             guard existing.id != ignoredID, existing.id != camera.id, existing.kind == camera.kind else {
                 return false
@@ -663,7 +679,10 @@ final class AppViewModel: ObservableObject {
         }
 
         guard camera.isEnabled else { return }
+        try await validateConnection(camera)
+    }
 
+    private func validateConnection(_ camera: CameraConfig) async throws {
         switch camera.feedMode {
         case .snapshotPolling:
             try await validateSnapshotCamera(camera)

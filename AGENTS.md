@@ -68,7 +68,10 @@
   - iOS uses larger touch-friendly controls and separate editor sheets
 - macOS preferences save immediately; close the native Settings window when finished.
 - iOS app settings stay local until the top-right `Done`.
-- Camera editors use top-right `Done` to close and `Save` to commit.
+- macOS camera editors use compact Connection / Picture & Sound / Display pages, a top-right Done button, and a fixed action footer. After saving, the footer also shows Done.
+- macOS Connection contains camera kind, JPG/RTSP feed choice, address/login, and HTTP/HTTPS (JPG only). Picture & Sound contains stream quality, refresh timing, and mute.
+- Connection > Check Connection tests current draft details without saving, including disabled cameras. JPG checks use the selected protocol without probing the opposite one; save validation retains alternate-protocol suggestions. Saving still validates enabled cameras; standalone connection checks do not check for duplicate saved cameras.
+- iOS camera editors use top-right `Done` to close and `Save` to commit.
 - Camera edits stay local until `Save`.
 - On iOS and macOS, camera editing happens in a separate sheet; on macOS it belongs to the Settings window.
 - On macOS, the gear button and app menu open the same Settings window; File > Configuration selects its Configuration tab.
@@ -87,6 +90,8 @@
   - iOS app settings UI + shared camera editor + macOS camera pane
 - `Security Center/UI/MacSettingsView.swift`
   - native macOS Settings tabs, immediate preferences, and camera editor routing
+- `Security Center/UI/MacCameraEditor.swift`
+  - compact macOS camera editor pages and validation feedback
 - `Security Center/UI/GridSettingsPane.swift`
   - macOS grid management and draft-based grid editor
 - `Security Center/UI/ConfigurationTransferView.swift`
