@@ -9,14 +9,14 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-private struct ShowConfigurationTransferActionKey: FocusedValueKey {
-    typealias Value = () -> Void
+private struct ConfigurationTransferPresentationKey: FocusedValueKey {
+    typealias Value = Binding<Bool>
 }
 
 extension FocusedValues {
-    var showConfigurationTransferAction: (() -> Void)? {
-        get { self[ShowConfigurationTransferActionKey.self] }
-        set { self[ShowConfigurationTransferActionKey.self] = newValue }
+    var configurationTransferPresentation: Binding<Bool>? {
+        get { self[ConfigurationTransferPresentationKey.self] }
+        set { self[ConfigurationTransferPresentationKey.self] = newValue }
     }
 }
 

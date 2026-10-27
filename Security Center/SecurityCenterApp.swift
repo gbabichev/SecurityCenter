@@ -14,7 +14,7 @@ struct SecurityCenterApp: App {
 #if os(macOS)
     @NSApplicationDelegateAdaptor(SecurityCenterAppDelegate.self) private var appDelegate
     @Environment(\.openWindow) private var openWindow
-    @FocusedValue(\.showConfigurationTransferAction) private var showConfigurationTransferAction
+    @FocusedValue(\.configurationTransferPresentation) private var configurationTransferPresentation
     @State private var showingAbout = false
 #endif
 
@@ -57,12 +57,12 @@ struct SecurityCenterApp: App {
 
             CommandGroup(after: .newItem) {
                 Button {
-                    showConfigurationTransferAction?()
+                    configurationTransferPresentation?.wrappedValue = true
                 } label: {
                     Label("Configuration…", systemImage: "arrow.up.arrow.down")
                 }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
-                .disabled(showConfigurationTransferAction == nil)
+                .disabled(configurationTransferPresentation == nil)
             }
         }
 #endif

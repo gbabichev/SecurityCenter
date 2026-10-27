@@ -84,9 +84,7 @@ struct ContentView: View {
         .sheet(isPresented: $showingConfigurationTransfer) {
             ConfigurationTransferView(viewModel: viewModel)
         }
-        .focusedValue(\.showConfigurationTransferAction) {
-            showingConfigurationTransfer = true
-        }
+        .focusedSceneValue(\.configurationTransferPresentation, $showingConfigurationTransfer)
 #endif
         .onChange(of: showingSettings) { _, isPresented in
             if !isPresented {
