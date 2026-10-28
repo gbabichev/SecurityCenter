@@ -47,7 +47,7 @@ struct CameraDetailView: View {
                 }
             }
         }
-        .onChange(of: camera) { _, _ in backdropImage = nil }
+        .onChange(of: camera.backdropSource) { _, _ in backdropImage = nil }
         .onChange(of: viewModel.blurredCameraBackground) { _, _ in backdropImage = nil }
         .onChange(of: camera.feedMode) {
             streamStatus = .loading

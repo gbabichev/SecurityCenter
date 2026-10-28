@@ -258,7 +258,6 @@ private struct GridCameraContent: View {
         .background(backgroundColor ?? .clear)
         .clipped()
         .onChange(of: blurredCameraBackground) { _, _ in backdropImage = nil }
-        .onChange(of: camera) { _, _ in backdropImage = nil }
         .task(id: startupKey) {
             backdropImage = nil
             isReady = false
@@ -370,7 +369,7 @@ private struct GridCameraContent: View {
 
     private var startupKey: GridCameraStartupKey {
         GridCameraStartupKey(
-            camera: camera,
+            source: camera.backdropSource,
             gridPictureStyle: gridPictureStyle,
             startupDelayNanoseconds: startupDelayNanoseconds
         )
@@ -378,7 +377,7 @@ private struct GridCameraContent: View {
 }
 
 private struct GridCameraStartupKey: Hashable {
-    let camera: CameraConfig
+    let source: CameraBackdropSource
     let gridPictureStyle: GridPictureStyle
     let startupDelayNanoseconds: UInt64
 }

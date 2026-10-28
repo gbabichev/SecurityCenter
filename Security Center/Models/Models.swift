@@ -334,6 +334,14 @@ enum SidebarItem: Hashable {
     case grid(GridLayout.ID)
 }
 
+/// Identifies the picture a cached backdrop belongs to, excluding labels and display preferences.
+struct CameraBackdropSource: Hashable {
+    let cameraID: UUID
+    let feedMode: CameraFeedMode
+    let url: URL?
+    let isEnabled: Bool
+}
+
 struct CameraConfig: Identifiable, Codable, Hashable {
     var id = UUID()
     var name: String
@@ -427,6 +435,15 @@ struct CameraConfig: Identifiable, Codable, Hashable {
         isMuted = try container.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
         showsNameInDisplay = try container.decodeIfPresent(Bool.self, forKey: .showsNameInDisplay) ?? true
         nameLocation = try container.decodeIfPresent(CameraNameLocation.self, forKey: .nameLocation) ?? .topLeft
+    }
+
+    var backdropSource: CameraBackdropSource {
+        CameraBackdropSource(
+            cameraID: id,
+            feedMode: feedMode,
+            url: feedMode == .rtsp ? rtspURL : snapshotURL,
+            isEnabled: isEnabled
+        )
     }
 
     var displayName: String {
