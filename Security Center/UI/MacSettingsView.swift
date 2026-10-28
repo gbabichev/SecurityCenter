@@ -167,10 +167,12 @@ struct MacCameraSettingsList: View {
                     MacCameraSettingsRow(
                         camera: camera,
                         onEdit: { onEdit(camera) },
+                        onCopy: { _ = viewModel.duplicateCamera(camera) },
                         onDelete: { cameraToDelete = camera }
                     )
                         .contextMenu {
                             Button("Edit…") { onEdit(camera) }
+                            Button("Copy Camera") { _ = viewModel.duplicateCamera(camera) }
                             Button("Delete", role: .destructive) { cameraToDelete = camera }
                         }
                 }
@@ -225,6 +227,7 @@ private struct MacCameraSettingsHeader: View {
 private struct MacCameraSettingsRow: View {
     let camera: CameraConfig
     let onEdit: () -> Void
+    let onCopy: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -250,16 +253,29 @@ private struct MacCameraSettingsRow: View {
             }
             .contentShape(Rectangle())
             .onTapGesture(count: 2, perform: onEdit)
-            Button("Edit…", systemImage: "pencil", action: onEdit)
-                .buttonStyle(.bordered)
-                .labelStyle(.iconOnly)
-                .help("Edit camera")
-            Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
-                .buttonStyle(.bordered)
-                .labelStyle(.iconOnly)
-                .help("Delete camera")
+            CameraRowActionButton(title: "Edit Camera", systemImage: "pencil", action: onEdit)
+            CameraRowActionButton(title: "Copy Camera", systemImage: "doc.on.doc", action: onCopy)
+            CameraRowActionButton(title: "Delete Camera", systemImage: "trash", role: .destructive, action: onDelete)
         }
         .padding(.vertical, 6)
+    }
+}
+
+private struct CameraRowActionButton: View {
+    let title: LocalizedStringKey
+    let systemImage: String
+    var role: ButtonRole? = nil
+    let action: () -> Void
+
+    var body: some View {
+        Button(role: role, action: action) {
+            Label(title, systemImage: systemImage)
+                .labelStyle(.iconOnly)
+                .frame(width: 20, height: 18)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.regular)
+        .help(title)
     }
 }
 #endif
