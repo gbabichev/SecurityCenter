@@ -74,6 +74,19 @@ I am continuing to work on improving performance of the iOS branch. Once I am ha
 
 ## Changelog
 
+### 1.1.0
+- Redesigned macOS Settings with dedicated General, Quiet Hours, Cameras, Grids, and Configuration tabs.
+- Simplified camera editing with Connection, Picture & Sound, and Display pages, plus a Check Connection button.
+- Added matching Edit, Copy, and Delete camera buttons with clearer click feedback.
+- Added a camera “+” button to the sidebar. Camera and grid editors now work consistently from the sidebar and Settings.
+- Added grid management with layout editing and camera assignments. Grid picture shape now lives in the Grids tab.
+- Redesigned configuration import with a separate selection window, category tabs, and switch controls.
+- Added options to remove all cameras or reset grids.
+- Added optional blurred camera backgrounds for JPG and RTSP feeds.
+- Added ⌘⇧M to toggle Quiet Hours.
+- Reduced unnecessary audio processing for muted RTSP streams.
+- Added optional debug logging to help investigate streaming issues.
+
 ### 1.0.1
 - Added "Keep Screen Awake" setting. Screen is kept awake by default when streaming, but would go to sleep during Quiet Hours. This setting prevents that.
 
