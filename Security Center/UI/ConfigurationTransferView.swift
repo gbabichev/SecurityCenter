@@ -17,12 +17,8 @@ struct ConfigurationTransferView: View {
     @State private var showingRemoveAllCamerasConfirmation = false
     @State private var showingResetGridsConfirmation = false
     @State private var exportDocument = ConfigurationJSONDocument(data: Data())
-    @State private var importData: Data?
-    @State private var importFileName: String?
-    @State private var importPreview: ConfigurationImportPreview?
-    @State private var importOptions = ConfigurationImportOptions.additiveDefault
-    @State private var camerasExpanded = true
-    @State private var gridsExpanded = true
+    @State private var importRequest: ConfigurationImportRequest?
+    @State private var importCompleted = false
     @State private var alert: ConfigurationTransferAlert?
 
     var body: some View {
@@ -89,6 +85,16 @@ struct ConfigurationTransferView: View {
         ) { result in
             handleImportSelection(result: result)
         }
+        .sheet(item: $importRequest, onDismiss: {
+            if importCompleted {
+                importCompleted = false
+                alert = ConfigurationTransferAlert(title: "Import Complete", message: "The selected configuration items were added.")
+            }
+        }) { request in
+            ConfigurationImportSheet(viewModel: viewModel, request: request) {
+                importCompleted = true
+            }
+        }
         .fileExporter(
             isPresented: $showingExporter,
             document: exportDocument,
@@ -109,83 +115,12 @@ struct ConfigurationTransferView: View {
     }
 
     private var importSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Add from a file")
-                Spacer()
-                Button {
-                    showingImporter = true
-                } label: {
-                    Label("Choose File…", systemImage: "doc.badge.plus")
-                }
-            }
-
-            if let importFileName, let importPreview {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        Image(systemName: "doc.text")
-                            .foregroundStyle(.secondary)
-                        Text(importFileName)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Spacer()
-                    }
-
-                    ConfigurationImportItemGroup(
-                        title: "Cameras",
-                        systemImage: "video",
-                        items: importPreview.cameras,
-                        selection: $importOptions.selectedCameraIDs,
-                        isExpanded: $camerasExpanded
-                    )
-
-                    Divider()
-
-                    ConfigurationImportItemGroup(
-                        title: "Grids",
-                        systemImage: "square.grid.2x2",
-                        items: importPreview.grids,
-                        selection: $importOptions.selectedGridIDs,
-                        isExpanded: $gridsExpanded
-                    )
-
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("App display settings", isOn: $importOptions.importsAppSettings)
-                            .disabled(!importPreview.includesAppSettings)
-                        Toggle("Quiet hours", isOn: $importOptions.importsQuietHours)
-                            .disabled(!importPreview.includesQuietHours)
-                    }
-                    .toggleStyle(.checkbox)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    if !previewSummary(importPreview).isEmpty {
-                        Text(previewSummary(importPreview))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-
-                    HStack {
-                        Spacer()
-                        Button {
-                            applyImport()
-                        } label: {
-                            Label("Import Selected", systemImage: "square.and.arrow.down")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!canImport)
-                    }
-                }
-                .padding(.top, 4)
-            } else {
-                Text("Open a Security Center configuration file to select what to import.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(14)
-                    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        HStack {
+            Text("Choose a file, then review what to import.")
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button("Choose File…", systemImage: "doc.badge.plus") {
+                showingImporter = true
             }
         }
     }
@@ -206,14 +141,6 @@ struct ConfigurationTransferView: View {
         }
     }
 
-    private var canImport: Bool {
-        importData != nil &&
-            (!importOptions.selectedCameraIDs.isEmpty ||
-             !importOptions.selectedGridIDs.isEmpty ||
-             importOptions.importsAppSettings ||
-             importOptions.importsQuietHours)
-    }
-
     private func handleImportSelection(result: Result<[URL], Error>) {
         do {
             guard let url = try result.get().first else { return }
@@ -225,27 +152,8 @@ struct ConfigurationTransferView: View {
             }
 
             let data = try Data(contentsOf: url)
-            importPreview = try viewModel.previewConfigurationImport(data)
-            importData = data
-            importFileName = url.lastPathComponent
-            importOptions = ConfigurationImportOptions(
-                selectedCameraIDs: Set(importPreview?.cameras.map(\.id) ?? []),
-                selectedGridIDs: Set(importPreview?.grids.map(\.id) ?? []),
-                importsAppSettings: false,
-                importsQuietHours: false
-            )
-            camerasExpanded = true
-            gridsExpanded = true
-        } catch {
-            alert = ConfigurationTransferAlert(title: "Import Failed", message: error.localizedDescription)
-        }
-    }
-
-    private func applyImport() {
-        do {
-            guard let importData else { return }
-            try viewModel.importConfigurationData(importData, options: importOptions)
-            alert = ConfigurationTransferAlert(title: "Import Complete", message: "The selected configuration items were added.")
+            let preview = try viewModel.previewConfigurationImport(data)
+            importRequest = ConfigurationImportRequest(data: data, fileName: url.lastPathComponent, preview: preview)
         } catch {
             alert = ConfigurationTransferAlert(title: "Import Failed", message: error.localizedDescription)
         }
@@ -260,64 +168,159 @@ struct ConfigurationTransferView: View {
         }
     }
 
-    private func previewSummary(_ preview: ConfigurationImportPreview) -> String {
-        let cameraNames = preview.cameras.map(\.name).prefix(3).joined(separator: ", ")
-        let gridNames = preview.grids.map(\.name).prefix(3).joined(separator: ", ")
-        switch (cameraNames.isEmpty, gridNames.isEmpty) {
-        case (false, false):
-            return "Includes \(cameraNames) and grids \(gridNames)."
-        case (false, true):
-            return "Includes \(cameraNames)."
-        case (true, false):
-            return "Includes grids \(gridNames)."
-        case (true, true):
-            return ""
+}
+
+private struct ConfigurationImportRequest: Identifiable {
+    let id = UUID()
+    let data: Data
+    let fileName: String
+    let preview: ConfigurationImportPreview
+}
+
+private enum ConfigurationImportPage: String, CaseIterable, Identifiable {
+    case cameras = "Cameras", grids = "Grids", preferences = "Preferences"
+    var id: Self { self }
+}
+
+private struct ConfigurationImportSheet: View {
+    @ObservedObject var viewModel: AppViewModel
+    let request: ConfigurationImportRequest
+    let onImported: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var page: ConfigurationImportPage = .cameras
+    @State private var options: ConfigurationImportOptions
+    @State private var alert: ConfigurationTransferAlert?
+
+    init(viewModel: AppViewModel, request: ConfigurationImportRequest, onImported: @escaping () -> Void) {
+        self.viewModel = viewModel
+        self.request = request
+        self.onImported = onImported
+        _options = State(initialValue: ConfigurationImportOptions(
+            selectedCameraIDs: Set(request.preview.cameras.map(\.id)),
+            selectedGridIDs: Set(request.preview.grids.map(\.id)),
+            importsAppSettings: false,
+            importsQuietHours: false
+        ))
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Import Configuration")
+                    .font(.title2.weight(.semibold))
+                Label(request.fileName, systemImage: "doc.text")
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Picker("Import category", selection: $page) {
+                    ForEach(ConfigurationImportPage.allCases) { page in
+                        Text(LocalizedStringKey(page.rawValue)).tag(page)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+            .padding(20)
+            Divider()
+            Form {
+                switch page {
+                case .cameras:
+                    ConfigurationImportItemGroup(title: "Cameras", items: request.preview.cameras, selection: $options.selectedCameraIDs)
+                case .grids:
+                    ConfigurationImportItemGroup(title: "Grids", items: request.preview.grids, selection: $options.selectedGridIDs)
+                case .preferences:
+                    Section {
+                        Toggle("App display settings", isOn: $options.importsAppSettings)
+                            .disabled(!request.preview.includesAppSettings)
+                        Toggle("Quiet hours", isOn: $options.importsQuietHours)
+                            .disabled(!request.preview.includesQuietHours)
+                    } header: {
+                        Text("Preferences")
+                    } footer: {
+                        Text("Selected preferences replace your current settings. Unavailable options are not included in this file.")
+                    }
+                }
+            }
+            .formStyle(.grouped)
+            .toggleStyle(.switch)
+            Divider()
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Existing cameras and grids are kept. Selected preferences are updated.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                HStack {
+                    Text("Selected: \(options.selectedCameraIDs.count) cameras, \(options.selectedGridIDs.count) grids")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Cancel") { dismiss() }
+                        .keyboardShortcut(.cancelAction)
+                    Button("Import Selected", action: applyImport)
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!canImport)
+                }
+            }
+            .padding(20)
+        }
+        .frame(width: 640, height: 560)
+        .alert(item: $alert) { alert in
+            Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
+        }
+    }
+
+    private var canImport: Bool {
+        !options.selectedCameraIDs.isEmpty || !options.selectedGridIDs.isEmpty ||
+            options.importsAppSettings || options.importsQuietHours
+    }
+
+    private func applyImport() {
+        do {
+            try viewModel.importConfigurationData(request.data, options: options)
+            onImported()
+            dismiss()
+        } catch {
+            alert = ConfigurationTransferAlert(title: "Import Failed", message: error.localizedDescription)
         }
     }
 }
 
 private struct ConfigurationImportItemGroup: View {
-    let title: String
-    let systemImage: String
+    let title: LocalizedStringKey
     let items: [ConfigurationImportItem]
     @Binding var selection: Set<UUID>
-    @Binding var isExpanded: Bool
 
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
+        Section {
+            if items.isEmpty {
+                Text("No items in this file.")
+                    .foregroundStyle(.secondary)
+            } else {
+                HStack {
+                    Text("\(selection.count) of \(items.count) selected")
+                        .foregroundStyle(.secondary)
+                    Spacer()
                     Button("Select All") { selection = Set(items.map(\.id)) }
+                        .disabled(selection.count == items.count)
                     Button("Deselect All") { selection = [] }
+                        .disabled(selection.isEmpty)
                 }
-                .controlSize(.small)
-                .padding(.bottom, 2)
-
                 ForEach(items) { item in
                     Toggle(isOn: itemSelection(item.id)) {
-                        Text(item.name).lineLimit(1).truncationMode(.tail)
+                        Text(item.name)
                     }
-                    .toggleStyle(.checkbox)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
-        } label: {
-            Label("\(title) (\(items.count))", systemImage: systemImage)
+        } header: {
+            Text(title)
         }
-        .disabled(items.isEmpty)
     }
 
     private func itemSelection(_ id: UUID) -> Binding<Bool> {
         Binding {
             selection.contains(id)
         } set: { isSelected in
-            if isSelected {
-                selection.insert(id)
-            } else {
-                selection.remove(id)
-            }
+            if isSelected { selection.insert(id) } else { selection.remove(id) }
         }
     }
 }
