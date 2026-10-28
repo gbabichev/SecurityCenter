@@ -8,6 +8,8 @@ struct GridSettingsPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            GridPictureSettings(style: $viewModel.gridPictureStyle)
+            Divider()
             GridSettingsHeader(count: viewModel.grids.count) {
                 editor = GridSettingsEditorRequest(grid: nil)
             }
@@ -33,6 +35,24 @@ struct GridSettingsPane: View {
                 secondaryButton: .cancel()
             )
         }
+    }
+}
+
+private struct GridPictureSettings: View {
+    @Binding var style: GridPictureStyle
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker("Picture shape for all grids", selection: $style) {
+                ForEach(GridPictureStyle.allCases) { Text($0.title).tag($0) }
+            }
+            Text(style.description)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

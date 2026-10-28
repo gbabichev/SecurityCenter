@@ -68,15 +68,6 @@ private struct GeneralSettingsPane: View {
                 }
             }
             Section {
-                Picker("Picture shape", selection: $viewModel.gridPictureStyle) {
-                    ForEach(GridPictureStyle.allCases) { Text($0.title).tag($0) }
-                }
-            } header: {
-                Text("Camera Grids")
-            } footer: {
-                Text(viewModel.gridPictureStyle.description)
-            }
-            Section {
                 Toggle("Keep screen awake", isOn: $viewModel.keepsScreenAwake)
             } header: {
                 Text("Display")
