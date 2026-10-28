@@ -25,6 +25,7 @@ struct CameraSettingsView: View {
     @ObservedObject var viewModel: AppViewModel
     let initialCameraID: CameraConfig.ID?
     let startsAddingCamera: Bool
+    var presentsEditorDirectly = false
     @Environment(\.dismiss) private var dismiss
     @State private var draft = CameraConfig.emptyDraft
     @State private var selectedCameraID: CameraConfig.ID?
@@ -58,11 +59,33 @@ struct CameraSettingsView: View {
 #endif
 
     var body: some View {
+        if presentsEditorDirectly {
+            directEditor
+        } else {
 #if os(macOS)
-        macBody
+            macBody
 #else
-        iosBody
+            iosBody
 #endif
+        }
+    }
+
+    private var directEditor: some View {
+        cameraEditorSheet
+            .onAppear { handleInitialPresentationIfNeeded() }
+            .onChange(of: draft) { _, _ in
+                guard !editorState.isValidating, !connectionCheckState.isValidating else { return }
+                editorState = .idle
+                connectionCheckState = .idle
+            }
+            .onChange(of: draft.kind) { _, kind in
+                if kind == .genericRTSP { draft.feedMode = .rtsp }
+            }
+            .onChange(of: viewModel.cameras) { _, cameras in
+                if let selectedCameraID, !cameras.contains(where: { $0.id == selectedCameraID }) {
+                    dismiss()
+                }
+            }
     }
 
     #if os(macOS)
@@ -1470,6 +1493,7 @@ struct CameraSettingsView: View {
             viewModel.deleteCamera(camera)
             showingCameraEditorSheet = false
             resetEditor()
+            if presentsEditorDirectly { dismiss() }
         }
     }
 
@@ -1507,6 +1531,7 @@ struct CameraSettingsView: View {
         case .dismissEditor:
             showingCameraEditorSheet = false
             resetEditor()
+            if presentsEditorDirectly { dismiss() }
         case .addCamera:
             beginAddingCamera()
         }

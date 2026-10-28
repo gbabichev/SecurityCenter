@@ -137,7 +137,8 @@
 - macOS Settings includes a Grids tab for creation, editing, camera assignments, and deletion. Changes apply on Create/Save.
 - Configuration > Reset Grids requires confirmation, restores one empty default `2x2` grid, and keeps cameras/preferences.
 - Grid deletion keeps at least one grid; use Reset Grids to clear the final layout.
-- Users create saved grids from the sidebar `+`.
+- Sidebar Cameras and Grids headers both have an add `+` button. Sidebar camera add/edit presents the shared camera editor directly, without opening Settings. Settings presents the same editor and save/validation logic.
+- Sidebar and Settings grid creation/editing reuse `GridSettingsEditor`, including camera assignments; sidebar saves select the saved grid.
 - Editing a grid reuses the same sheet as new-grid creation, but pre-populates the existing name/rows/columns.
 - Resizing an existing grid preserves assignments where possible, truncates overflow when shrinking, and pads with empty slots when growing.
 - Filled macOS grid cells use double-click to reassign camera.

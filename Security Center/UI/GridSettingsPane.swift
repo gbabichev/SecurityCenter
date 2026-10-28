@@ -1,5 +1,6 @@
-#if os(macOS)
 import SwiftUI
+
+#if os(macOS)
 
 struct GridSettingsPane: View {
     @ObservedObject var viewModel: AppViewModel
@@ -25,7 +26,9 @@ struct GridSettingsPane: View {
             .listStyle(.inset)
         }
         .sheet(item: $editor) { request in
-            GridSettingsEditor(viewModel: viewModel, existingGrid: request.grid)
+            NavigationStack {
+                GridSettingsEditor(viewModel: viewModel, existingGrid: request.grid)
+            }
         }
         .alert(item: $gridToDelete) { grid in
             Alert(
@@ -116,9 +119,12 @@ private struct GridSettingsRow: View {
     }
 }
 
-private struct GridSettingsEditor: View {
+#endif
+
+struct GridSettingsEditor: View {
     @ObservedObject var viewModel: AppViewModel
     let existingGrid: GridLayout?
+    var onSave: ((GridLayout) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var draft = GridLayout(columns: 2, rows: 2)
     @State private var assignments: [CameraConfig.ID?] = Array(repeating: nil, count: 4)
@@ -147,11 +153,14 @@ private struct GridSettingsEditor: View {
                 viewModel.gridAssignments[savedGrid.id] = assignments.map { id in
                     id.flatMap { validCameraIDs.contains($0) ? $0 : nil }
                 }
+                onSave?(savedGrid)
                 dismiss()
             }
         }
         .navigationTitle(existingGrid == nil ? "New Grid" : "Edit Grid")
+#if os(macOS)
         .frame(width: 520, height: 480)
+#endif
         .onAppear {
             guard !didLoad else { return }
             didLoad = true
@@ -207,4 +216,3 @@ private struct GridSettingsEditorActions: View {
         .padding()
     }
 }
-#endif
