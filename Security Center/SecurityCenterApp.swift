@@ -6,11 +6,16 @@
 //
 
 import SwiftUI
+#if os(macOS)
+import Combine
+#endif
 
 @main
 struct SecurityCenterApp: App {
     private let mainWindowID = "main"
-    @StateObject private var viewModel = AppViewModel()
+    // Child views observe camera updates; the scene only retains the shared model.
+    // Observing every playback update here also rebuilds the native menus.
+    @State private var viewModel = AppViewModel()
 #if os(macOS)
     @NSApplicationDelegateAdaptor(SecurityCenterAppDelegate.self) private var appDelegate
     @Environment(\.openWindow) private var openWindow
@@ -56,17 +61,7 @@ struct SecurityCenterApp: App {
                 .keyboardShortcut("n")
             }
 
-            CommandGroup(after: .toolbar) {
-                Button {
-                    viewModel.toggleManualQuietHours()
-                } label: {
-                    Label(
-                        viewModel.isQuietHoursActive ? "Turn Off Quiet Hours" : "Turn On Quiet Hours",
-                        systemImage: "moon"
-                    )
-                }
-                .keyboardShortcut("m", modifiers: [.command, .shift])
-            }
+            QuietHoursCommands(viewModel: viewModel)
 
         }
 
@@ -80,3 +75,45 @@ struct SecurityCenterApp: App {
 #endif
     }
 }
+
+#if os(macOS)
+private struct QuietHoursCommands: Commands {
+    @StateObject private var state: QuietHoursMenuState
+    private let viewModel: AppViewModel
+
+    init(viewModel: AppViewModel) {
+        self.viewModel = viewModel
+        _state = StateObject(wrappedValue: QuietHoursMenuState(viewModel: viewModel))
+    }
+
+    var body: some Commands {
+        CommandGroup(after: .toolbar) {
+            Button {
+                viewModel.toggleManualQuietHours()
+            } label: {
+                Label(
+                    state.isActive ? "Turn Off Quiet Hours" : "Turn On Quiet Hours",
+                    systemImage: "moon"
+                )
+            }
+            .keyboardShortcut("m", modifiers: [.command, .shift])
+        }
+    }
+}
+
+@MainActor
+private final class QuietHoursMenuState: ObservableObject {
+    @Published private(set) var isActive: Bool
+    private var subscription: AnyCancellable?
+
+    init(viewModel: AppViewModel) {
+        isActive = viewModel.isQuietHoursActive
+        subscription = viewModel.$isQuietHoursActive
+            .removeDuplicates()
+            .sink { [weak self] isActive in
+                guard self?.isActive != isActive else { return }
+                self?.isActive = isActive
+            }
+    }
+}
+#endif
