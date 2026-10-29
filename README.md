@@ -106,3 +106,16 @@ xcrun swiftc -module-cache-path /tmp/securitycenter-log-test-cache 'Security Cen
 ```
 
 Muted RTSP cameras skip audio processing entirely. Changing mute briefly reconnects the stream to apply the new audio mode. Diagnostic samples identify `audioProcessing=disabled` or `enabled` and report `audioDecoded`/`audioPlayed` counters so audio timing changes can be compared with a saved baseline.
+
+### RTSP stall recovery
+
+RTSP playback checks rendered-frame progress every two seconds, independently of debug logging. It allows 30 seconds for initial video and reconnects after 20 seconds without new displayed frames once playback has started. Brief stalls and static scenes do not trigger recovery as long as frames continue arriving. Checks pause for hidden/minimized or inactive viewers and give a fresh allowance after a long sampling gap. Quiet hours and disabled cameras remove their players and stop the checks.
+
+Watchdog recovery reopens the existing camera connection using the normal reconnect delay. When logging is enabled, look for `frame watchdog detected stalled video` followed by `reconnect executing`.
+
+Run the deterministic recovery checks from the repository root:
+
+```sh
+xcrun swiftc -module-cache-path /tmp/securitycenter-watchdog-test-cache 'Security Center/Logic/RTSPFrameWatchdog.swift' Tests/RTSPFrameWatchdogTests.swift -o /tmp/securitycenter-watchdog-tests
+/tmp/securitycenter-watchdog-tests
+```

@@ -243,7 +243,11 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         private var currentIsMuted = false
         private var reconnectTask: Task<Void, Never>?
         private var videoReadyTask: Task<Void, Never>?
+        private var watchdogTask: Task<Void, Never>?
+        private var frameWatchdog = RTSPFrameWatchdog(now: ProcessInfo.processInfo.systemUptime)
+        private var isStallRecoveryPending = false
         private var isActive = false
+        private weak var videoView: VLCPlatformView?
         private var hasShownVideo = false
         private var reconnectDelayNanoseconds: UInt64 = 2_000_000_000
 
@@ -265,6 +269,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         }
 
         deinit {
+            watchdogTask?.cancel()
             diagnosticsTask?.cancel()
             if let diagnosticsObserver { NotificationCenter.default.removeObserver(diagnosticsObserver) }
             backdropTask?.cancel()
@@ -274,6 +279,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         }
 
         func attach(to view: VLCPlatformView) {
+            videoView = view
             attachmentCount += 1
 #if os(macOS)
             player.setVideoView(view)
@@ -300,6 +306,9 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             guard didURLChange else { return }
 
             reconnectTask?.cancel()
+            reconnectTask = nil
+            stopFrameWatchdog()
+            isStallRecoveryPending = false
             videoReadyTask?.cancel()
             currentURL = url
             previousDisplayed = nil
@@ -322,10 +331,13 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             publish(.connecting)
             player.play()
             waitForVideoOutput()
+            startFrameWatchdog()
         }
 
         func stop() {
             logDiagnostic("stop requested")
+            stopFrameWatchdog()
+            isStallRecoveryPending = false
             diagnosticsTask?.cancel()
             diagnosticsTask = nil
             stopBackdropCapture()
@@ -399,6 +411,8 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         }
 
         func mediaPlayerStateChanged(_ notification: Notification) {
+            // Buffered/playing events from the frozen media must not cancel its recovery.
+            guard !isStallRecoveryPending else { return }
             if lastLoggedPlayerState != player.state.rawValue {
                 lastLoggedPlayerState = player.state.rawValue
                 logDiagnostic("VLC state=\(player.state.rawValue) videoOut=\(player.hasVideoOut) shownVideo=\(hasShownVideo)")
@@ -422,6 +436,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
                 reconnectDelayNanoseconds = 2_000_000_000
                 publishVideoSizeIfAvailable()
                 waitForVideoOutput()
+                if watchdogTask == nil { startFrameWatchdog() }
             case .error, .ended, .stopped:
                 videoReadyTask?.cancel()
                 videoReadyTask = nil
@@ -435,8 +450,10 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             }
         }
 
-        private func scheduleReconnect() {
+        private func scheduleReconnect(forceRestart: Bool = false) {
             guard isActive, currentURL != nil else { return }
+            stopFrameWatchdog()
+            isStallRecoveryPending = forceRestart
             reconnectTask?.cancel()
             videoReadyTask?.cancel()
             let delayNanoseconds = reconnectDelayNanoseconds
@@ -451,13 +468,70 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
                     guard let self, let currentURL = self.currentURL, self.isActive else { return }
                     self.logDiagnostic("reconnect executing")
                     self.previousDisplayed = nil
+                    if forceRestart {
+                        // Setting media with the same URL can otherwise reuse the stalled session.
+                        self.player.stop()
+                        self.player.media = nil
+                    }
                     let media = VLCMedia(url: currentURL)
                     self.configure(media: media)
                     self.player.media = media
                     self.hasShownVideo = false
                     self.publish(.connecting)
                     self.player.play()
+                    self.isStallRecoveryPending = false
+                    self.reconnectTask = nil
+                    self.waitForVideoOutput()
+                    self.startFrameWatchdog()
                 }
+            }
+        }
+
+        private func startFrameWatchdog() {
+            stopFrameWatchdog()
+            guard isActive, currentURL != nil else { return }
+            frameWatchdog = RTSPFrameWatchdog(now: ProcessInfo.processInfo.systemUptime)
+            watchdogTask = Task { @MainActor [weak self] in
+                while !Task.isCancelled {
+                    do { try await Task.sleep(nanoseconds: UInt64(RTSPFrameWatchdog.sampleInterval * 1_000_000_000)) }
+                    catch { return }
+                    guard !Task.isCancelled, let self else { return }
+                    self.checkFrameProgress()
+                }
+            }
+        }
+
+        private func stopFrameWatchdog() {
+            watchdogTask?.cancel()
+            watchdogTask = nil
+        }
+
+        private func checkFrameProgress() {
+            guard isActive, currentURL != nil, !isStallRecoveryPending else { return }
+            let now = ProcessInfo.processInfo.systemUptime
+#if os(macOS)
+            let canRender = videoView?.window.map {
+                $0.isVisible && !$0.isMiniaturized && $0.occlusionState.contains(.visible)
+            } ?? false
+#else
+            let canRender = videoView?.window?.windowScene?.activationState == .foregroundActive
+#endif
+            guard canRender else {
+                frameWatchdog = RTSPFrameWatchdog(now: now)
+                return
+            }
+            switch player.state {
+            case .opening, .buffering, .playing, .esAdded:
+                guard let media = player.media else { return }
+                let displayed = media.statistics.displayedPictures
+                if frameWatchdog.observe(displayedPictures: displayed, now: now) {
+                    logDiagnostic("frame watchdog detected stalled video; displayed=\(displayed); reopening stream")
+                    hasShownVideo = false
+                    scheduleReconnect(forceRestart: true)
+                }
+            default:
+                // Explicit pauses and stopped/error states use their existing handling.
+                frameWatchdog = RTSPFrameWatchdog(now: now)
             }
         }
 

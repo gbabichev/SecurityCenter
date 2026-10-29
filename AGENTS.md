@@ -48,6 +48,7 @@
 - RTSP:
   - rendered by `VLCKitSPM` in `RTSPStreamView.swift`
   - reconnect logic lives inside the VLC coordinator
+  - `RTSPFrameWatchdog` checks displayed-frame progress every 2 seconds, allowing 30 seconds for initial video and 20 seconds without progress afterward. It runs independently of logging, suspends checks for non-rendering viewers, and resets grace after long sampling gaps. Stall recovery forces a media reopen using existing reconnect backoff.
   - uses a shared `VLCLibrary`, not a separate libVLC instance per tile
   - muted RTSP cameras use VLC's `no-audio` media option to skip audio processing. Changing mute recreates the player to apply audio selection; unmuting restores normal audio.
   - audio-processing experiment keeps TCP transport, 1000 ms caching, and video decoder selection unchanged; compare debug logs against the saved baseline.
@@ -189,5 +190,5 @@
 - StreamDebugLog writes on a bounded serial utility queue to Application Support/Security Center/Logs. File rotation retains stream-debug.log and three 5 MB archives across restarts.
 - Redact full camera URLs, authentication headers, and registered raw/encoded credentials before disk writes. Never bypass this writer with a native VLC file logger.
 - VLCStreamLogger captures native VLC messages through the shared library. Each coordinator logs camera/session identity, playback states, reconnects, snapshot activity, and 5-second decoder/displayed/lost-frame statistics plus audioProcessing/audioDecoded/audioPlayed fields.
-- Diagnostics must not change playback or reconnect behavior. Logging is observational; the known P2 recovery findings remain separate work.
+- Diagnostics must not change playback or reconnect behavior. Logging is observational; the frame watchdog is a separate recovery mechanism. The cancelled-reconnect race remains separate work.
 - Tests/StreamDebugLogTests.swift verifies disabled logging, redaction, concurrent writes, restart retention, and rotation. README includes the standalone test command.
