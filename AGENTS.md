@@ -190,5 +190,7 @@
 - StreamDebugLog writes on a bounded serial utility queue to Application Support/Security Center/Logs. File rotation retains stream-debug.log and three 5 MB archives across restarts.
 - Redact full camera URLs, authentication headers, and registered raw/encoded credentials before disk writes. Never bypass this writer with a native VLC file logger.
 - VLCStreamLogger captures native VLC messages through the shared library. Each coordinator logs camera/session identity, playback states, reconnects, snapshot activity, and 5-second decoder/displayed/lost-frame statistics plus audioProcessing/audioDecoded/audioPlayed fields.
-- Diagnostics must not change playback or reconnect behavior. Logging is observational; the frame watchdog is a separate recovery mechanism. The cancelled-reconnect race remains separate work.
+- Diagnostics must not change playback or reconnect behavior. Logging is observational; the frame watchdog is a separate recovery mechanism. Reconnect attempts use a one-use `RTSPReconnectGate` ticket checked on the playback actor immediately before media replacement; recovery, source changes, shutdown, and newer retries invalidate old tickets.
 - Tests/StreamDebugLogTests.swift verifies disabled logging, redaction, concurrent writes, restart retention, and rotation. README includes the standalone test command.
+
+- `Tests/RTSPReconnectGateTests.swift` covers cancellation after preflight, recovered playback, superseded retries, source changes, shutdown, and valid one-use retries.

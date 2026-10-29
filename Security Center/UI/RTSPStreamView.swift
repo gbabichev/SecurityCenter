@@ -242,6 +242,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
         private var currentURL: URL?
         private var currentIsMuted = false
         private var reconnectTask: Task<Void, Never>?
+        private var reconnectGate = RTSPReconnectGate()
         private var videoReadyTask: Task<Void, Never>?
         private var watchdogTask: Task<Void, Never>?
         private var frameWatchdog = RTSPFrameWatchdog(now: ProcessInfo.processInfo.systemUptime)
@@ -305,8 +306,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             applyMute()
             guard didURLChange else { return }
 
-            reconnectTask?.cancel()
-            reconnectTask = nil
+            cancelReconnect()
             stopFrameWatchdog()
             isStallRecoveryPending = false
             videoReadyTask?.cancel()
@@ -342,8 +342,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             diagnosticsTask = nil
             stopBackdropCapture()
             isActive = false
-            reconnectTask?.cancel()
-            reconnectTask = nil
+            cancelReconnect()
             videoReadyTask?.cancel()
             videoReadyTask = nil
             reconnectDelayNanoseconds = 2_000_000_000
@@ -431,8 +430,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
                     publish(.buffering)
                 }
             case .playing, .paused, .esAdded:
-                reconnectTask?.cancel()
-                reconnectTask = nil
+                cancelReconnect()
                 reconnectDelayNanoseconds = 2_000_000_000
                 publishVideoSizeIfAvailable()
                 waitForVideoOutput()
@@ -450,11 +448,19 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             }
         }
 
-        private func scheduleReconnect(forceRestart: Bool = false) {
-            guard isActive, currentURL != nil else { return }
-            stopFrameWatchdog()
-            isStallRecoveryPending = forceRestart
+        private func cancelReconnect() {
+            reconnectGate.cancel()
             reconnectTask?.cancel()
+            reconnectTask = nil
+            isStallRecoveryPending = false
+        }
+
+        private func scheduleReconnect(forceRestart: Bool = false) {
+            guard isActive, let currentURL else { return }
+            stopFrameWatchdog()
+            cancelReconnect()
+            isStallRecoveryPending = forceRestart
+            let ticket = reconnectGate.begin(for: currentURL)
             videoReadyTask?.cancel()
             let delayNanoseconds = reconnectDelayNanoseconds
             let delaySeconds = max(1, Int(delayNanoseconds / 1_000_000_000))
@@ -462,10 +468,13 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             logDiagnostic("reconnect scheduled in \(delaySeconds)s")
             publish(.reconnecting(seconds: delaySeconds))
             reconnectTask = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: delayNanoseconds)
+                do { try await Task.sleep(nanoseconds: delayNanoseconds) }
+                catch { return }
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
-                    guard let self, let currentURL = self.currentURL, self.isActive else { return }
+                    guard let self,
+                          self.reconnectGate.consume(ticket, currentURL: self.currentURL,
+                                                     isActive: self.isActive, isCancelled: Task.isCancelled) else { return }
                     self.logDiagnostic("reconnect executing")
                     self.previousDisplayed = nil
                     if forceRestart {
@@ -473,7 +482,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
                         self.player.stop()
                         self.player.media = nil
                     }
-                    let media = VLCMedia(url: currentURL)
+                    let media = VLCMedia(url: ticket.url)
                     self.configure(media: media)
                     self.player.media = media
                     self.hasShownVideo = false

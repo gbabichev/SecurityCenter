@@ -119,3 +119,10 @@ Run the deterministic recovery checks from the repository root:
 xcrun swiftc -module-cache-path /tmp/securitycenter-watchdog-test-cache 'Security Center/Logic/RTSPFrameWatchdog.swift' Tests/RTSPFrameWatchdogTests.swift -o /tmp/securitycenter-watchdog-tests
 /tmp/securitycenter-watchdog-tests
 ```
+
+Reconnect attempts are tied to their original camera source. Cancelled or superseded attempts are checked again immediately before changing playback, so a queued retry cannot restart a recovered stream or affect a newly selected source.
+
+```sh
+xcrun swiftc -module-cache-path /tmp/securitycenter-reconnect-test-cache 'Security Center/Logic/RTSPReconnectGate.swift' Tests/RTSPReconnectGateTests.swift -o /tmp/securitycenter-reconnect-tests
+/tmp/securitycenter-reconnect-tests
+```
