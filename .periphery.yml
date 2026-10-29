@@ -1,0 +1,5 @@
+project: Security Center.xcodeproj
+schemes:
+  - Security Center
+# Identity fields used by synthesized equality drive SwiftUI tasks and retry validation.
+retain_equatable_properties: true

@@ -19,7 +19,6 @@ struct SecurityCenterApp: App {
 #if os(macOS)
     @NSApplicationDelegateAdaptor(SecurityCenterAppDelegate.self) private var appDelegate
     @Environment(\.openWindow) private var openWindow
-    @State private var settingsNavigation = MacSettingsNavigation()
     @State private var showingAbout = false
 #endif
 
@@ -27,7 +26,6 @@ struct SecurityCenterApp: App {
         WindowGroup(id: mainWindowID) {
             ContentView(viewModel: viewModel)
 #if os(macOS)
-                .environment(settingsNavigation)
                 .frame(minWidth: 400, minHeight: 500)
                 .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
                 .overlay {
@@ -69,7 +67,6 @@ struct SecurityCenterApp: App {
 #if os(macOS)
         Settings {
             MacSettingsView(viewModel: viewModel)
-                .environment(settingsNavigation)
         }
         .windowResizability(.contentSize)
 #endif

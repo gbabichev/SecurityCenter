@@ -156,16 +156,6 @@ final class AppViewModel: ObservableObject {
         isLoading = false
     }
 
-    var selectedCamera: CameraConfig? {
-        guard case let .camera(cameraID) = selectedSidebarItem else { return nil }
-        return cameras.first { $0.id == cameraID }
-    }
-
-    var selectedGrid: GridLayout? {
-        guard case let .grid(gridID) = selectedSidebarItem else { return nil }
-        return grids.first { $0.id == gridID }
-    }
-
     var quietHoursSaverEndLabel: String? {
         quietHoursManualOverride == true && !quietHoursScheduleOverridesManual ? nil : quietHours.endLabel
     }
@@ -182,10 +172,6 @@ final class AppViewModel: ObservableObject {
         let isAvailable = status == .ok
         playbackAvailabilityOverrides[cameraID] = isAvailable
         availability[cameraID] = isAvailable
-    }
-
-    func clearPlaybackAvailability(for cameraID: CameraConfig.ID) {
-        playbackAvailabilityOverrides[cameraID] = nil
     }
 
     func deleteCamera(_ camera: CameraConfig) {
@@ -239,18 +225,6 @@ final class AppViewModel: ObservableObject {
         cameras.append(copy)
         availability[copy.id] = copy.isEnabled
         return copy
-    }
-
-    func updateQuietHours(enabled: Bool) {
-        quietHours.isEnabled = enabled
-    }
-
-    func updateQuietHours(startMinutes: Int) {
-        quietHours.startMinutes = startMinutes
-    }
-
-    func updateQuietHours(endMinutes: Int) {
-        quietHours.endMinutes = endMinutes
     }
 
     func toggleManualQuietHours() {
@@ -845,8 +819,6 @@ struct ConfigurationImportPreview {
     let includesAppSettings: Bool
     let includesQuietHours: Bool
 
-    var cameraCount: Int { cameras.count }
-    var gridCount: Int { grids.count }
 }
 
 private struct AppConfigurationPayload: Codable {

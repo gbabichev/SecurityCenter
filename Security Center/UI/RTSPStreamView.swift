@@ -49,6 +49,7 @@ enum RTSPPlaybackState: Equatable {
 
 private enum RTSPVLCConfiguration {
     private static let nativeLogger = VLCStreamLogger()
+    // periphery:ignore - Retains the shared library notification observer for the app lifetime.
     private static var loggingObserver: NSObjectProtocol?
     static let sharedLibrary: VLCLibrary = {
         let library = VLCLibrary(options: [
@@ -385,7 +386,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             return 1_000_000_000
         }
 
-        func mediaPlayerSnapshot(_ notification: Notification) {
+        func mediaPlayerSnapshot(_: Notification) {
             Task { @MainActor [weak self] in self?.publishBackdropSnapshot() }
         }
 
@@ -409,7 +410,7 @@ private struct VLCPlayerContainer: VLCPlatformViewRepresentable {
             Task { @MainActor [onBackdropImageChange] in onBackdropImageChange(nil) }
         }
 
-        func mediaPlayerStateChanged(_ notification: Notification) {
+        func mediaPlayerStateChanged(_: Notification) {
             // Buffered/playing events from the frozen media must not cancel its recovery.
             guard !isStallRecoveryPending else { return }
             if lastLoggedPlayerState != player.state.rawValue {

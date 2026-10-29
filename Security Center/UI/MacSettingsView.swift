@@ -1,51 +1,22 @@
 #if os(macOS)
 import SwiftUI
 import AppKit
-import Observation
-
-@MainActor
-@Observable
-final class MacSettingsNavigation {
-    var selection: MacSettingsTab = .general
-    var cameraRequest: CameraSettingsRequest?
-
-    func editCamera(_ id: CameraConfig.ID? = nil) {
-        selection = .cameras
-        cameraRequest = CameraSettingsRequest(cameraID: id)
-    }
-}
-
-enum MacSettingsTab: Hashable {
-    case general, quietHours, cameras, grids, configuration
-}
-
-struct CameraSettingsRequest: Equatable {
-    let id = UUID()
-    let cameraID: CameraConfig.ID?
-}
 
 struct MacSettingsView: View {
     @ObservedObject var viewModel: AppViewModel
-    @Environment(MacSettingsNavigation.self) private var navigation
 
     var body: some View {
-        @Bindable var navigation = navigation
-        TabView(selection: $navigation.selection) {
+        TabView {
             GeneralSettingsPane(viewModel: viewModel)
                 .tabItem { Label("General", systemImage: "gearshape") }
-                .tag(MacSettingsTab.general)
             QuietHoursSettingsPane(viewModel: viewModel)
                 .tabItem { Label("Quiet Hours", systemImage: "moon") }
-                .tag(MacSettingsTab.quietHours)
             CameraSettingsView(viewModel: viewModel, initialCameraID: nil, startsAddingCamera: false)
                 .tabItem { Label("Cameras", systemImage: "video") }
-                .tag(MacSettingsTab.cameras)
             GridSettingsPane(viewModel: viewModel)
                 .tabItem { Label("Grids", systemImage: "square.grid.2x2") }
-                .tag(MacSettingsTab.grids)
             ConfigurationTransferView(viewModel: viewModel)
                 .tabItem { Label("Configuration", systemImage: "arrow.up.arrow.down") }
-                .tag(MacSettingsTab.configuration)
         }
         .frame(width: 680, height: 500)
         .preferredColorScheme(viewModel.appTheme.colorScheme)

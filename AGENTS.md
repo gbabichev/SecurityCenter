@@ -153,7 +153,6 @@
     - still shows the full frame; it does not crop
 
 ## Platform Notes
-- `SettingsSection.swift` is macOS-only.
 - `IdleCursorHider.swift` matters mainly on macOS.
 - iOS settings include native import/export pickers.
 - iOS sidebar title should be attached to the sidebar column, not the outer split view.
@@ -161,6 +160,7 @@
 
 ## Build / Verify
 - Preferred verification is generic destination `xcodebuild`, unsigned.
+- `.periphery.yml` configures unused-code scans and retains synthesized equality fields needed by SwiftUI task identities and reconnect tickets. Use a clean scan after deleting declarations to avoid stale index findings.
 - Common commands:
   - macOS:
     - `env HOME=$PWD/.home CLANG_MODULE_CACHE_PATH=$PWD/.cache/clang/ModuleCache SWIFTPM_MODULECACHE_OVERRIDE=$PWD/.cache/org.swift.swiftpm CFFIXED_USER_HOME=$PWD/.home xcodebuild -project 'Security Center.xcodeproj' -scheme 'Security Center' -destination 'generic/platform=macOS' -clonedSourcePackagesDirPath '.sourcepackages' -derivedDataPath '.derivedData' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build`

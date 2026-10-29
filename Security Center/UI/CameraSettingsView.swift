@@ -17,7 +17,9 @@ import AppKit
 struct CameraSettingsView: View {
     private enum PendingLeaveAction {
         case selectCamera(CameraConfig)
+#if os(iOS)
         case dismissSheet
+#endif
         case dismissEditor
         case addCamera
     }
@@ -36,6 +38,7 @@ struct CameraSettingsView: View {
     @State private var showingUnsavedChangesAlert = false
     @State private var showingDeleteCameraConfirmation = false
     @State private var didCopySourceURL = false
+#if os(iOS)
     @State private var appThemeDraft: AppTheme = .system
     @State private var debugLoggingEnabledDraft = false
     @State private var blurredCameraBackgroundDraft = false
@@ -45,11 +48,10 @@ struct CameraSettingsView: View {
     @State private var quietHoursDraft = QuietHoursSchedule()
     @State private var showQuietHoursInToolbarDraft = false
     @State private var quietHoursScheduleOverridesManualDraft = false
+#endif
+
     @State private var showingCameraEditorSheet = false
     @State private var didHandleInitialPresentation = false
-#if os(macOS)
-    @Environment(MacSettingsNavigation.self) private var settingsNavigation
-#endif
 #if os(iOS)
     @State private var showingImportPicker = false
     @State private var showingExportPicker = false
@@ -91,10 +93,6 @@ struct CameraSettingsView: View {
     #if os(macOS)
     private var macBody: some View {
         MacCameraSettingsList(viewModel: viewModel, onAdd: beginAddingCamera, onEdit: openEditor)
-        .onAppear { handleMacCameraRequest() }
-        .onChange(of: settingsNavigation.cameraRequest) { _, _ in
-            handleMacCameraRequest()
-        }
         .onChange(of: draft) { _, _ in
             guard !editorState.isValidating, !connectionCheckState.isValidating else { return }
             editorState = .idle
@@ -219,78 +217,11 @@ struct CameraSettingsView: View {
     }
     #endif
 
+#if os(iOS)
     private var appSettingsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             sectionHeading("App Settings", subtitle: "A few preferences for the whole app.")
 
-#if os(macOS)
-            VStack(alignment: .leading, spacing: 16) {
-                SettingsRow(
-                    "Theme",
-                    systemImage: "circle.lefthalf.filled",
-                    subtitle: appThemeDraft.title
-                ) {
-                    Picker("Theme", selection: $appThemeDraft) {
-                        ForEach(AppTheme.allCases) { theme in
-                            Text(theme.title)
-                                .tag(theme)
-                        }
-                    }
-                    .frame(maxWidth: 360)
-                    .pickerStyle(.segmented)
-                }
-
-                Divider()
-
-                SettingsRow(
-                    "View Background",
-                    systemImage: "rectangle.fill",
-                    subtitle: viewBackgroundStyleDraft.title
-                ) {
-                    Picker("View Background", selection: $viewBackgroundStyleDraft) {
-                        ForEach(ViewBackgroundStyle.allCases) { style in
-                            Text(style.title)
-                                .tag(style)
-                        }
-                    }
-                    .frame(maxWidth: 360)
-                    .pickerStyle(.segmented)
-                }
-
-                Divider()
-
-                SettingsRow(
-                    "Keep Screen Awake",
-                    systemImage: "display",
-                    subtitle: "Prevent the screen from sleeping, including during quiet hours."
-                ) {
-                    Toggle(isOn: $keepsScreenAwakeDraft) {
-                    }
-                    .toggleStyle(.switch)
-                }
-
-                Divider()
-
-                SettingsRow(
-                    "Camera Grid",
-                    systemImage: "square.grid.2x2",
-                    subtitle: gridPictureStyleDraft.description
-                ) {
-                    Picker("Camera Grid", selection: $gridPictureStyleDraft) {
-                        ForEach(GridPictureStyle.allCases) { style in
-                            Text(style.title)
-                                .tag(style)
-                        }
-                    }
-                    .frame(maxWidth: 360)
-                    .pickerStyle(.segmented)
-                }
-
-                Divider()
-
-                quietHoursSettingsBlock
-            }
-#else
             VStack(alignment: .leading, spacing: 12) {
                 fieldBlock(title: "Theme", caption: "Choose how the app should appear.") {
                     optionButtons(
@@ -381,7 +312,6 @@ struct CameraSettingsView: View {
                     }
                 }
             }
-#endif
         }
         .padding(18)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -393,80 +323,24 @@ struct CameraSettingsView: View {
 
     private var quietHoursSettingsBlock: some View {
         fieldBlock(title: "Quiet Hours", caption: "Black out the screen and pause all camera traffic during these hours.") {
-#if os(macOS)
-            SettingsRow(
-                "Turn on quiet hours",
-                systemImage: "moon.fill",
-                subtitle: "Black out the screen and pause all camera traffic."
-            ) {
-                Toggle(isOn: quietHoursEnabledBinding) {
-                }
-                .toggleStyle(.switch)
-            }
-#else
             Toggle("Turn on quiet hours", isOn: quietHoursEnabledBinding)
-#endif
 
-#if os(macOS)
-            SettingsRow(
-                "Show Quiet Hours in Toolbar",
-                systemImage: "moon",
-                subtitle: "Add a toolbar button for turning quiet hours on or off."
-            ) {
-                Toggle(isOn: $showQuietHoursInToolbarDraft) {
-                }
-                .toggleStyle(.switch)
-            }
-#else
             Toggle("Show Quiet Hours in Toolbar", isOn: $showQuietHoursInToolbarDraft)
-#endif
 
-#if os(macOS)
-            SettingsRow(
-                "Schedule Overrides Manual",
-                systemImage: "clock",
-                subtitle: "Scheduled quiet hours take back over when they start or end."
-            ) {
-                Toggle(isOn: $quietHoursScheduleOverridesManualDraft) {
-                }
-                .toggleStyle(.switch)
-                .disabled(!showQuietHoursInToolbarDraft)
-            }
-            .opacity(showQuietHoursInToolbarDraft ? 1 : 0.5)
-#else
             Toggle("Schedule Overrides Manual", isOn: $quietHoursScheduleOverridesManualDraft)
                 .disabled(!showQuietHoursInToolbarDraft)
-#endif
 
             if quietHoursDraft.isEnabled {
-#if os(macOS)
-                HStack(spacing: 16) {
-                    quietHoursTimeField(title: "Start", selection: quietHoursStartDateBinding)
-                    quietHoursTimeField(title: "End", selection: quietHoursEndDateBinding)
-                }
-#else
                 VStack(spacing: 12) {
                     quietHoursTimeField(title: "Start", selection: quietHoursStartDateBinding)
                     quietHoursTimeField(title: "End", selection: quietHoursEndDateBinding)
                 }
-#endif
             }
 
             Text(quietHoursStatusText)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
-    }
-
-    private var cameraSettingsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionHeading("Camera Settings", subtitle: cameraSettingsSubtitle)
-            cameraPickerCard
-        }
-    }
-
-    private var cameraSettingsSubtitle: String {
-        "Pick a camera to edit, or start a new one."
     }
 
     private var header: some View {
@@ -576,12 +450,10 @@ struct CameraSettingsView: View {
     }
 
     private var cameraPickerSubtitle: String {
-#if os(macOS)
-        "Click a camera below to edit it."
-#else
         "Tap a camera below to edit it."
-#endif
     }
+
+#endif
 
     private var cameraEditorSheetContent: some View {
 #if os(macOS)
@@ -656,6 +528,7 @@ struct CameraSettingsView: View {
         .interactiveDismissDisabled(hasUnsavedCameraChanges)
     }
 
+#if os(iOS)
     private var editorCard: some View {
         settingsCard(
             title: isEditing ? "Edit Camera" : "Add Camera",
@@ -707,17 +580,10 @@ struct CameraSettingsView: View {
 
     @ViewBuilder
     private var cameraTypePrimaryFields: some View {
-#if os(macOS)
         VStack(spacing: 12) {
             enabledField
             cameraKindField
         }
-#else
-        VStack(spacing: 12) {
-            enabledField
-            cameraKindField
-        }
-#endif
     }
 
     private var nameField: some View {
@@ -729,44 +595,23 @@ struct CameraSettingsView: View {
 
     @ViewBuilder
     private var basicsEditorFields: some View {
-#if os(macOS)
-        HStack(alignment: .top, spacing: 12) {
-            nameField
-            displayNameField
-        }
-#else
         VStack(spacing: 12) {
             nameField
             displayNameField
         }
-#endif
     }
 
     private var addressField: some View {
         fieldBlock(title: "Address", caption: "IP or host name.") {
             TextField("192.168.1.50", text: $draft.host)
-#if os(iOS)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .keyboardType(.URL)
-#endif
                 .textFieldStyle(.roundedBorder)
         }
     }
 
     private var cameraKindField: some View {
-#if os(macOS)
-        SettingsRow("Type", subtitle: "Choose which kind of camera connection to add.") {
-            Picker("Type", selection: $draft.kind) {
-                ForEach(CameraKind.allCases) { kind in
-                    Text(kind.title)
-                        .tag(kind)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 360)
-        }
-#else
         fieldBlock(title: "Type", caption: "Choose which kind of camera connection to add.") {
             optionButtons(
                 selection: $draft.kind,
@@ -774,43 +619,18 @@ struct CameraSettingsView: View {
                 columns: 2
             ) { $0.title }
         }
-#endif
     }
 
     private var displayNameField: some View {
         fieldBlock(title: "Display", caption: "Choose if this camera name appears on pictures, and where.") {
-#if os(macOS)
-            SettingsRow(
-                "Show camera name on picture",
-                systemImage: "character.textbox",
-                subtitle: "Overlay the camera label on the image."
-            ) {
-                Toggle(isOn: $draft.showsNameInDisplay) {
-                }
-                .toggleStyle(.switch)
-            }
-#else
             Toggle("Show camera name on picture", isOn: $draft.showsNameInDisplay)
-#endif
 
             if draft.showsNameInDisplay {
-#if os(iOS)
                 optionButtons(
                     selection: $draft.nameLocation,
                     options: CameraNameLocation.allCases,
                     columns: 2
                 ) { $0.title }
-#else
-                SettingsRow("Position") {
-                    Picker("Position", selection: $draft.nameLocation) {
-                        ForEach(CameraNameLocation.allCases) { location in
-                            Text(location.title)
-                                .tag(location)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                }
-#endif
             }
         }
     }
@@ -917,26 +737,17 @@ struct CameraSettingsView: View {
 
     @ViewBuilder
     private var credentialsSection: some View {
-#if os(macOS)
-        HStack(alignment: .top, spacing: 12) {
-            usernameField
-            passwordField
-        }
-#else
         VStack(spacing: 12) {
             usernameField
             passwordField
         }
-#endif
     }
 
     private var usernameField: some View {
         fieldBlock(title: "Username", caption: "Camera login user.") {
             TextField("admin", text: $draft.username)
-#if os(iOS)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-#endif
                 .textFieldStyle(.roundedBorder)
         }
     }
@@ -966,17 +777,6 @@ struct CameraSettingsView: View {
     }
 
     private var protocolField: some View {
-#if os(macOS)
-        SettingsRow(
-            "Protocol",
-            systemImage: "lock.shield",
-            subtitle: "Use HTTPS instead of HTTP for JPG snapshots."
-        ) {
-            Toggle(isOn: $draft.useHTTPS) {
-            }
-            .toggleStyle(.switch)
-        }
-#else
         HStack(spacing: 12) {
             Text("Protocol")
                 .font(.headline)
@@ -987,32 +787,9 @@ struct CameraSettingsView: View {
             Text(draft.useHTTPS ? "HTTPS" : "HTTP")
                 .foregroundStyle(.secondary)
         }
-#endif
     }
 
     private var pollingFrequencyField: some View {
-#if os(macOS)
-        SettingsRow(
-            "Update Every",
-            systemImage: "clock.arrow.circlepath",
-            subtitle: "Choose how often JPG pictures refresh."
-        ) {
-            HStack(spacing: 12) {
-                Stepper(
-                    "Update Every",
-                    value: $draft.snapshotPollingIntervalSeconds,
-                    in: 1...10
-                )
-                .labelsHidden()
-
-                Text("\(draft.snapshotPollingIntervalSeconds)s")
-                    .font(.headline.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(minWidth: 32, alignment: .trailing)
-            }
-            .frame(maxWidth: 160)
-        }
-#else
         fieldBlock(title: "Update Every", caption: "Choose how often JPG pictures refresh.") {
             HStack(spacing: 12) {
                 Stepper(
@@ -1033,58 +810,21 @@ struct CameraSettingsView: View {
             .padding(.vertical, 10)
             .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
-#endif
     }
 
     private var enabledField: some View {
-#if os(macOS)
-        SettingsRow(
-            "Camera enabled",
-            systemImage: "power",
-            subtitle: "Allow this camera to appear and connect normally."
-        ) {
-            Toggle("", isOn: $draft.isEnabled)
-                .toggleStyle(.switch)
-        }
-#else
         Toggle("Camera enabled", isOn: $draft.isEnabled)
-#endif
     }
 
     @ViewBuilder
     private var cameraTypeEditorFields: some View {
-#if os(macOS)
         VStack(spacing: 12) {
             feedModeField
             streamVariantField
         }
-#else
-        VStack(spacing: 12) {
-            feedModeField
-            streamVariantField
-        }
-#endif
     }
 
     private var feedModeField: some View {
-#if os(macOS)
-        VStack(alignment: .leading, spacing: 6) {
-            SettingsRow("Feed Type", subtitle: "Choose camera source for display and probing.") {
-                Picker("Feed Type", selection: $draft.feedMode) {
-                    ForEach(CameraFeedMode.allCases) { mode in
-                        Text(mode.title)
-                            .tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 360)
-            }
-
-            Text(draft.feedMode.description)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-#else
         fieldBlock(title: "Feed Type", caption: "Choose camera source for display and probing.") {
             optionButtons(
                 selection: $draft.feedMode,
@@ -1096,34 +836,19 @@ struct CameraSettingsView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
-#endif
     }
 
     private var genericRTSPURLField: some View {
         fieldBlock(title: "Camera Link", caption: "Paste the full live video link for this camera.") {
             TextField("rtsp://user:password@192.168.1.50:554/stream", text: $draft.genericRTSPURL)
-#if os(iOS)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .keyboardType(.URL)
-#endif
                 .textFieldStyle(.roundedBorder)
         }
     }
 
     private var streamVariantField: some View {
-#if os(macOS)
-        SettingsRow("Stream Variant", subtitle: streamVariantCaption) {
-            Picker("Stream Variant", selection: $draft.streamVariant) {
-                ForEach(CameraStreamVariant.allCases) { variant in
-                    Text(variant.title)
-                        .tag(variant)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 360)
-        }
-#else
         fieldBlock(title: "Stream Variant", caption: streamVariantCaption) {
             optionButtons(
                 selection: $draft.streamVariant,
@@ -1131,23 +856,10 @@ struct CameraSettingsView: View {
                 columns: 2
             ) { $0.title }
         }
-#endif
     }
 
     private var muteCameraField: some View {
-#if os(macOS)
-        SettingsRow(
-            "Mute Camera",
-            systemImage: "speaker.slash",
-            subtitle: "Turn off audio playback for this stream."
-        ) {
-            Toggle(isOn: $draft.isMuted) {
-            }
-            .toggleStyle(.switch)
-        }
-#else
         Toggle("Mute Camera", isOn: $draft.isMuted)
-#endif
     }
 
     private var streamVariantCaption: String {
@@ -1206,6 +918,8 @@ struct CameraSettingsView: View {
         }
     }
 
+#endif
+
     private var sourcePreviewValue: String {
         switch draft.kind {
         case .reolink:
@@ -1224,6 +938,7 @@ struct CameraSettingsView: View {
         selectedCameraID != nil
     }
 
+#if os(iOS)
     private var hasUnsavedAppSettingsChanges: Bool {
         appThemeDraft != viewModel.appTheme
             || debugLoggingEnabledDraft != viewModel.debugLoggingEnabled
@@ -1235,6 +950,8 @@ struct CameraSettingsView: View {
             || showQuietHoursInToolbarDraft != viewModel.showQuietHoursInToolbar
             || quietHoursScheduleOverridesManualDraft != viewModel.quietHoursScheduleOverridesManual
     }
+
+#endif
 
     private var baselineDraft: CameraConfig {
         guard let selectedCameraID else {
@@ -1265,6 +982,7 @@ struct CameraSettingsView: View {
         return false
     }
 
+#if os(iOS)
     private func settingsCard<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeading(title, subtitle: subtitle)
@@ -1331,16 +1049,6 @@ struct CameraSettingsView: View {
     }
 
     private func quietHoursTimeField(title: String, selection: Binding<Date>) -> some View {
-#if os(macOS)
-        SettingsRow(title) {
-            DatePicker(
-                title,
-                selection: selection,
-                displayedComponents: .hourAndMinute
-            )
-            .datePickerStyle(.field)
-        }
-#else
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(settingTitleFont)
@@ -1351,14 +1059,9 @@ struct CameraSettingsView: View {
                 displayedComponents: .hourAndMinute
             )
             .labelsHidden()
-#if os(macOS)
-            .datePickerStyle(.field)
-#else
             .datePickerStyle(.compact)
-#endif
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-#endif
     }
 
     private var quietHoursEnabledBinding: Binding<Bool> {
@@ -1394,22 +1097,13 @@ struct CameraSettingsView: View {
     }
 
     private var sectionTitleFont: Font {
-#if os(iOS)
         .title3.weight(.semibold)
-#else
-        .headline.weight(.semibold)
-#endif
     }
 
     private var settingTitleFont: Font {
-#if os(iOS)
         .subheadline.weight(.semibold)
-#else
-        .headline
-#endif
     }
 
-    #if os(iOS)
     private func optionButtons<Option: Identifiable & Hashable>(
         selection: Binding<Option>,
         options: [Option],
@@ -1440,7 +1134,8 @@ struct CameraSettingsView: View {
             }
         }
     }
-    #endif
+
+#endif
 
     private func checkCameraConnection() {
         guard !editorState.isValidating, !connectionCheckState.isValidating else { return }
@@ -1525,9 +1220,11 @@ struct CameraSettingsView: View {
             draft = camera
             editorState = .idle
             showingCameraEditorSheet = true
+#if os(iOS)
         case .dismissSheet:
             saveAppSettings()
             dismiss()
+#endif
         case .dismissEditor:
             showingCameraEditorSheet = false
             resetEditor()
@@ -1537,6 +1234,7 @@ struct CameraSettingsView: View {
         }
     }
 
+#if os(iOS)
     private func attemptToDismissSettingsSheet() {
         if hasUnsavedCameraChanges {
             pendingLeaveAction = .dismissSheet
@@ -1546,23 +1244,12 @@ struct CameraSettingsView: View {
         }
     }
 
+#endif
+
     private func beginAddingCamera() {
         resetEditor()
         showingCameraEditorSheet = true
     }
-
-#if os(macOS)
-    private func handleMacCameraRequest() {
-        guard let request = settingsNavigation.cameraRequest else { return }
-        settingsNavigation.cameraRequest = nil
-        if let id = request.cameraID,
-           let camera = viewModel.cameras.first(where: { $0.id == id }) {
-            attemptToLeaveEditor(.selectCamera(camera))
-        } else if request.cameraID == nil {
-            attemptToLeaveEditor(.addCamera)
-        }
-    }
-#endif
 
     private func handleInitialPresentationIfNeeded() {
         guard !didHandleInitialPresentation else { return }
@@ -1625,6 +1312,7 @@ struct CameraSettingsView: View {
         isPasswordVisible = false
     }
 
+#if os(iOS)
     private func saveAppSettings() {
         viewModel.debugLoggingEnabled = debugLoggingEnabledDraft
         viewModel.appTheme = appThemeDraft
@@ -1648,6 +1336,8 @@ struct CameraSettingsView: View {
         showQuietHoursInToolbarDraft = viewModel.showQuietHoursInToolbar
         quietHoursScheduleOverridesManualDraft = viewModel.quietHoursScheduleOverridesManual
     }
+
+#endif
 
     private func copySourceURLToClipboard() {
 #if os(iOS)
